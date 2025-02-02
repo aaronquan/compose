@@ -1,4 +1,4 @@
-#Compose - Music Composition Helper
+# Compose - Music Composition Helper
 
 Using Vite - React - Typescript
 
