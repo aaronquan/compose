@@ -5,6 +5,7 @@ import './App.css'
 
 import ComposeWorkspace from './interface/ComposeWorkspace'
 import PianoKeys from './interface/PianoKeys'
+import { SineGenerator } from './interface/SoundGenerator'
 
 function App() {
   //
@@ -12,6 +13,7 @@ function App() {
     <>
       <div>
         <ComposeWorkspace/>
+        <SineGenerator/>
       </div>
     </>
   )

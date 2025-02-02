@@ -56,6 +56,7 @@ export class WorkspaceState{
 
   nextViewBeat(){
     this.current_view_beat++;
+    console.log(this.current_view_beat);
   }
   resetViewBeat(){
     this.current_view_beat = 0;

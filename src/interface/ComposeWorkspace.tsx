@@ -69,9 +69,8 @@ function ComposeWorkspace(){
   function handleChangeTempo(e: React.ChangeEvent<HTMLInputElement>){
     const num = parseIntNum(e.target.value);
     if(num <= 0) return;
-    state.setNumberOfBars(num);
+    state.setTempo(num);
     setTempoInput(e.target.value);
-
   }
 
   function handleBarNumberChange(e: React.ChangeEvent<HTMLInputElement>){
@@ -79,13 +78,11 @@ function ComposeWorkspace(){
     if(num <= 0) return; 
     state.setNumberOfBars(num);
     setBarsInput(e.target.value);
-    //workspaceState.current.tempo = num;
-    //setBars(parseInt(e.target.value));
-
   }
   function handleClickPlay(){
     if(playState == PlayState.Playing){
       setPlayState(PlayState.Stopped);
+      state.resetViewBeat();
       clearTimeout(next_beat_timeout.current!);
     }else if(playState == PlayState.Stopped){
       setPlayState(PlayState.Playing);
@@ -101,8 +98,8 @@ function ComposeWorkspace(){
     //console.log(barViewIndex);
     if(state.isNextViewBeatLast()){
       setBarViewIndex(0);
+      setPlayState(PlayState.Stopped);  
       state.resetViewBeat();
-      console.log("finished");
       return;
     }else{
       setBarViewIndex((index) => index + 1);
@@ -133,7 +130,7 @@ function ComposeWorkspace(){
   <button onClick={handlePrintBeats}>Print Beats</button>
   </div>
   <div style={{display: "flex", flexDirection: "row"}}>
-    {[...Array(state.getNumberOfBeats())].map((_, i) => 
+    {state.getNumberOfBeats() >= 0 && [...Array(state.getNumberOfBeats())].map((_, i) => 
       <ComposeBeat key={i} barNumber={state.getBarTitleNumber(i)} 
       playingBeat={i == barViewIndex}
       onChangeLyric={handleChangeLyric(i)}
