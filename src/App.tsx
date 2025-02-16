@@ -14,6 +14,7 @@ function App() {
       <div>
         <ComposeWorkspace/>
         <SineGenerator/>
+        <PianoKeys/>
       </div>
     </>
   )

@@ -1,4 +1,4 @@
-import { ATone, shiftTone } from "../compose/note";
+import { AToneFrequency, shiftTone, noteToneMap } from "../compose/note";
 import {useEffect, useRef, useState} from "react";
 
 export function SineGenerator(){

@@ -1,3 +1,5 @@
+import { BaseNote } from "./note";
+
 export enum Chord{
   A = "A", B = "B", C = "C", D = "D", E = "E", F = "F", G = "G"
 }
