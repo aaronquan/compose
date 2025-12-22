@@ -1,12 +1,18 @@
 import {useRef, useEffect} from "react";
-import { noteToneMap } from "../compose/note";
+import { baseNoteToString, noteToneMap } from "../compose/note";
 import { Oscillator, SingleNoteOscillatorPlayer } from "../compose/audio";
 
 const keyWidth = 20;
 const keyHeight = 20;
 
-function PianoKeys(){
-  const oscillator = useRef<Oscillator | null>(null);
+type PianoKeysProps = {
+  audio_context: AudioContext;
+}
+
+
+
+function PianoKeys(props: PianoKeysProps){
+  const oscillator = useRef<Oscillator>(new Oscillator(props.audio_context));
   const notePlayer = useRef<SingleNoteOscillatorPlayer>(new SingleNoteOscillatorPlayer());
   useEffect(() => {
     const np = notePlayer.current;
@@ -16,41 +22,36 @@ function PianoKeys(){
     np.addNote(as, 1);
     //initiateOscillator();
   },[]);
+
+  /*
   function initiateOscillator(){
     if(!oscillator.current){
       oscillator.current = new Oscillator();
     }
-  }
+  }*/
   function playNote(frequency: number){
     oscillator.current!.setFrequency(frequency);
     oscillator.current!.play();
-  }
-  function handleClickRed(){
-    initiateOscillator();
-    playNote(noteToneMap.get(0)!.frequency);
-    //oscillator.current!.setFrequency(noteToneMap.get(0)!.frequency);
-    //oscillator.current!.play();
-    console.log("A");
-  }
-  function handleClickBlue(){
-    //initiateOscillator();
-    playNote(noteToneMap.get(2)!.frequency);
+    console.log(frequency);
   }
   function handleStop(){
     console.log("stop");
     if(oscillator.current) oscillator.current.stop();
   }
   function handleNoteKeyPress(i:number){
-    console.log("setting function "+i);
+    //console.log("setting function "+i);
     return function(){
       console.log(i);
-      initiateOscillator();
-      if(noteToneMap.has(i))
+      //initiateOscillator();
+      if(noteToneMap.has(i)){
         playNote(noteToneMap.get(i)!.frequency);
+        console.log(baseNoteToString(noteToneMap.get(i)?.notation!));
+      }
+
     }
   }
   function handlePlayNotes(){
-    initiateOscillator();
+    //initiateOscillator();
     notePlayer.current.playNotes(oscillator.current!);
   }
   return (

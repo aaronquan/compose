@@ -1,27 +1,134 @@
-import { noteToneMap,NoteTone } from "./note";
+import { noteToneMap,NoteTone, RealNoteTone } from "./note";
 
+//audio context for the project
+//export const audio_context = new AudioContext();
+
+export class OscillatorCollection{
+  audio_context: AudioContext;
+  inactive_oscillators: Oscillator[];
+  active_oscillators: Map<number, Oscillator>;
+
+  constructor(context: AudioContext){
+    this.audio_context = context;
+    this.inactive_oscillators = [];
+    this.active_oscillators = new Map<number, Oscillator>();
+  }
+  toggle(real_note: RealNoteTone): boolean{
+    if(!this.active_oscillators.has(real_note.id)){
+      this.play(real_note);
+      return true;
+    }
+    this.stop(real_note);
+    return false;
+  }
+  play(real_note: RealNoteTone){
+    if(this.inactive_oscillators.length == 0){
+      const osc = new Oscillator(this.audio_context);
+      osc.setFrequency(real_note.getFrequency());
+      osc.play();
+      this.active_oscillators.set(real_note.id, osc);
+      console.log("create");
+    }else{
+      const osc = this.inactive_oscillators.pop()!;
+      osc.setFrequency(real_note.getFrequency());
+      osc.play();
+      this.active_oscillators.set(real_note.id, osc);
+      console.log("reuse");
+    }
+    console.log(real_note.toString());
+  }
+  stop(real_note: RealNoteTone){
+    if(!this.active_oscillators.has(real_note.id)){
+      console.log("OscillatorCollection not found note ID");
+      return;
+    }
+    const osc = this.active_oscillators.get(real_note.id)!;
+    osc.stop();
+    this.inactive_oscillators.push(osc);
+    this.active_oscillators.delete(real_note.id);
+  }
+}
 
 export class Oscillator{
   audio_context: AudioContext;
   oscillator: OscillatorNode;
-  constructor(){
-    this.audio_context = new AudioContext();
+  private is_setup: boolean;
+  is_playing: boolean;
+
+  gain: GainNode;
+  end_gain: GainNode;
+  constructor(context: AudioContext){
+    this.audio_context = context;
     this.oscillator = this.audio_context.createOscillator();
-    this.oscillator.type = "sine";
-    this.oscillator.frequency.setValueAtTime(440, this.audio_context.currentTime);
-    this.oscillator.connect(this.audio_context.destination);
-    this.oscillator.start(0);
-    this.oscillator.disconnect(this.audio_context.destination);
-    //console.log("setup osc");
+    this.is_setup = false;
+    this.gain = this.audio_context.createGain();
+    this.end_gain = this.audio_context.createGain();
+
+    this.is_playing = false;
+    //this.gain.gain.linearRampToValueAtTime()
+  }
+
+  private setup(){
+    if(!this.is_setup){
+      this.oscillator.type = "sine";
+      this.gain.connect(this.audio_context.destination);
+      this.oscillator.connect(this.gain);//.connect(this.audio_context.destination);
+      //this.oscillator.connect(this.end_gain);
+      this.oscillator.start(0);
+      this.is_setup = true;
+      console.log("setting up oscillator");
+    }
+  }
+  setGain(value:number){
+    this.gain.gain.setValueAtTime(value, this.audio_context.currentTime);
   }
   setFrequency(freq:number){
+    console.log(freq);
     this.oscillator.frequency.setValueAtTime(freq, this.audio_context.currentTime);
   }
   play(){
-    this.oscillator.connect(this.audio_context.destination);
+    this.setup();
+    this.gain.gain.value = 0;
+    this.gain.gain.setTargetAtTime(0.2, this.audio_context.currentTime+0.01, 0.1);
+    this.is_playing = true;
   }
   stop(){
-    this.oscillator.disconnect(this.audio_context.destination);
+    this.gain.gain.setTargetAtTime(0, this.audio_context.currentTime, 0.1);
+    this.is_playing = false;
+  }
+}
+
+export class TickOscillator{
+  audio_context: AudioContext;
+  oscillator: OscillatorNode;
+
+  gain: GainNode;
+  is_setup: boolean;
+
+  constructor(context: AudioContext){
+    this.audio_context = context;
+    this.oscillator = context.createOscillator();
+    this.gain = context.createGain();
+    this.is_setup = false;
+  }
+  private setup(){
+    if(!this.is_setup){
+      this.oscillator.type = "sawtooth";
+      this.oscillator.frequency.setValueAtTime(1100, this.audio_context.currentTime);
+      this.gain.connect(this.audio_context.destination);
+      this.oscillator.connect(this.gain);
+      this.oscillator.start();
+      this.is_setup = true;
+    }
+  }
+  tick(){
+    this.setup();
+    this.gain.gain.setValueCurveAtTime([0.0,0.9,1.0,0.9, 0.8, 0.9, 0.8, 0.7, 0.5, 0.0], this.audio_context.currentTime, 0.006);
+    //this.gain.gain.setValueCurveAtTime([0.0, 1.0, 0.0], this.audio_context.currentTime, 0.01);
+  }
+  disconnect(){
+    this.oscillator.disconnect(this.gain);
+    this.gain.disconnect(this.audio_context.destination);
   }
 }
 

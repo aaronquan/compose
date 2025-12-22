@@ -1,4 +1,14 @@
-import { BaseNote } from "./note";
+import { BaseNote,  } from "./note";
+
+const majorTriad = [0, 4, 7];
+
+const major7 = [11];
+
+const minorTriad = [0, 3, 7];
+
+function getNotes(base:BaseNote){
+  base.note
+}
 
 export enum Chord{
   A = "A", B = "B", C = "C", D = "D", E = "E", F = "F", G = "G"
