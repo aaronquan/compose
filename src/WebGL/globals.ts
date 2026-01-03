@@ -1,6 +1,7 @@
 import { loadVertexShaders } from "./Shaders/Vertex/vertex";
 import { loadFragmentShaders } from "./Shaders/Fragment/fragment";
 import type { ShaderProgram } from "./Shaders/shader";
+
 import * as Matrix from "./Matrix/matrix";
 export class WebGL{
   static gl: WebGL2RenderingContext | null;
