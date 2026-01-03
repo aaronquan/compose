@@ -146,7 +146,7 @@ export function MIDIKeyboardVisuals(props: MIDIKeyboardVisualsProps){
     <PianoViews.PianoCanvas white_keys={29} 
     key_width={30} key_height={100} black_key_height_ratio={0.7} 
     black_key_width_ratio={0.6} starting_note={Note.Note.C}
-    notes_down={whiteNotesDown} 
+    white_notes_down={whiteNotesDown} 
     black_notes_down={blackNotesDown}
     onKeyboardNoteDown={onVisualNoteDown}
     onKeyboardNoteUp={onVisualNoteUp}

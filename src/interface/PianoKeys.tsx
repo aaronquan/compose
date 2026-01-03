@@ -1,5 +1,6 @@
 import {useRef, useEffect} from "react";
 import { baseNoteToString, noteToneMap } from "../compose/note";
+import * as Chord from "../compose/chord";
 import { Oscillator, SingleNoteOscillatorPlayer } from "../compose/audio";
 
 const keyWidth = 20;

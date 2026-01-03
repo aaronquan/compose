@@ -1,7 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Accidental, hasSharp, Note, noteToString, RealNoteTone } from "../compose/note";
+import * as Chord from "../compose/chord";
 import { Oscillator } from "../compose/audio";
 import update from 'immutability-helper';
+import * as WebGL from "./../WebGL/globals";
+import * as Shapes from "./../WebGL/Shapes/Shapes";
+import * as Shader from "./../WebGL/Shaders/custom";
+import * as Matrix from "./../WebGL/Matrix/matrix";
+import { PianoRenderer, PianoState } from "../renderers/piano";
+import { render } from "react-dom";
+
+Chord.tests();
 
 const black_key_width_ratio = 0.7;
 const black_key_height_ratio = 0.60;
@@ -190,23 +199,32 @@ function BlackKey(props: VisualKeyProps){
   )
 }
 
-type PianoCanvasProps = {
+export type PianoDrawProps = {
   white_keys: number;
   key_width: number;
   key_height: number;
   black_key_height_ratio: number;
   black_key_width_ratio: number;
   starting_note: Note;
-  notes_down: boolean[];
+  white_notes_down: boolean[];
   black_notes_down: boolean[];
+}
+
+type PianoCanvasProps =  PianoDrawProps & {
   onKeyboardNoteDown: (note_find: VisualNoteFind) => void;
   onKeyboardNoteUp: (note_find: VisualNoteFind) => void;
 };
 
 export function PianoCanvas(props: PianoCanvasProps){
+  const width = props.key_width*props.white_keys;
+  const height = props.key_height;
   const cv = useRef<HTMLCanvasElement>(null);
   const context = useRef<CanvasRenderingContext2D | null>(null);
-  const notes_down = useRef<boolean[]>([]);
+
+  const renderer = useRef<PianoRenderer | null>(null);
+  const piano_state = useRef<PianoState>(new PianoState());
+
+  const white_notes_down = useRef<boolean[]>([]);
   const black_notes_down = useRef<boolean[]>([]);
   const mouse_down = useRef<VisualNoteFind | null>(null);
   const mouse_over = useRef<VisualNoteFind | null>(null);
@@ -215,14 +233,108 @@ export function PianoCanvas(props: PianoCanvasProps){
     if(can != null){
       can.width = props.key_width*props.white_keys;
       can.height = props.key_height;
-      context.current = can.getContext("2d")!;
+      //context.current = can.getContext("2d")!;
       const ctx = context.current;
-      draw();
+      //WebGL.WebGL.gl = can.getContext("webgl2");
+      WebGL.WebGL.initialise(can);
+      console.log(WebGL.WebGL.gl);
+
+      renderer.current = new PianoRenderer(width, height);
+      //webGlTest();
+      renderer.current.draw({...props, mouse_down: mouse_down.current, mouse_over: mouse_over.current}, piano_state.current);
     }
   }, []);
   useEffect(() => {
-    notes_down.current = props.notes_down;
-  }, [props.notes_down]);
+    white_notes_down.current = props.white_notes_down;
+  }, [props.white_notes_down]);
+  useEffect(() => {
+    black_notes_down.current = props.black_notes_down;
+  }, [props.black_notes_down]);
+
+  function glRectangleModel(x: number, y: number, width: number, height: number): Matrix.TransformationMatrix3x3{
+    let model = Matrix.TransformationMatrix3x3.translate(x, y);
+    model = model.multiplyCopy(Matrix.TransformationMatrix3x3.scale(width, height));
+    return model;
+  }
+
+  function webGlTest(){
+    const shader = new Shader.MVPColourProgram();
+    const vp = Matrix.TransformationMatrix3x3.orthographic(0, cv.current!.width, cv.current!.height, 0);
+
+    //white key block
+    const block_width = props.key_width*props.white_keys;
+    const block_height = props.key_height;
+    const w_block_model = Matrix.TransformationMatrix3x3.scale(block_width, block_height);
+    const mvp = vp.multiplyCopy(w_block_model);
+    shader.use();
+    shader.setMvp(mvp);
+    shader.setColour(1.0, 1.0, 1.0);
+    Shapes.Quad.draw();
+
+    //draw white key hovers
+    if(mouse_down.current && !mouse_down.current.visual_note.is_black){
+      const x = props.key_width*mouse_down.current.visual_note.id;
+      shader.setColour(0, 1, 0);
+      const model = glRectangleModel(x, 0, props.key_width, props.key_height);
+      shader.setMvp(vp.multiplyCopy(model));
+      Shapes.Quad.draw();
+    }else if(mouse_over.current && !mouse_over.current.visual_note.is_black){
+      const x = props.key_width*mouse_over.current.visual_note.id;
+      shader.setColour(1, 0, 0);
+      const model = glRectangleModel(x, 0, props.key_width, props.key_height);
+      shader.setMvp(vp.multiplyCopy(model));
+      Shapes.Quad.draw();
+    }
+
+    //midi white keys
+    shader.setColour(0, 1, 0);
+    for(let i = 0; i < props.white_keys; i++){
+      if(props.white_notes_down[i]){
+        const x = props.key_width*i;
+        const model = glRectangleModel(x, 0, props.key_width, props.key_height);
+        shader.setMvp(vp.multiplyCopy(model));
+        Shapes.Quad.draw();
+      }
+    }
+
+    const line_thickness = 2;
+    const half_line_thickness = line_thickness/2;
+
+    //white lines 
+    shader.setColour(1, 0, 0);
+    for(let i = 1; i < props.white_keys; i++){
+        const x = props.key_width*i-half_line_thickness;
+        const model = glRectangleModel(x, 0, line_thickness, cv.current!.height);
+        shader.setMvp(vp.multiplyCopy(model));
+        Shapes.Quad.draw();
+    }
+
+    //draw black keys
+    const black_key_height = props.black_key_height_ratio*props.key_height;
+    const black_key_width = props.black_key_width_ratio*props.key_width;
+
+    shader.setColour(0,0,0);
+    for(let i = 0; i < props.white_keys; i++){
+      const has_black_key = i !== 0 && black_keys[(i+(props.starting_note ? props.starting_note.valueOf() : 0))%black_keys.length];
+      if(has_black_key){
+        if(mouse_down.current && mouse_down.current.visual_note.id == i && mouse_down.current.visual_note.is_black){
+          shader.setColour(0, 1, 0);
+        }else if(props.black_notes_down[i] || 
+          (mouse_over.current && mouse_over.current.visual_note.id == i && mouse_over.current.visual_note.is_black)){
+          shader.setColour(1, 0, 0);
+        }else{
+          shader.setColour(0, 0, 0);
+        }
+        const x = i*props.key_width-(black_key_width/2);
+        const model = glRectangleModel(x, 0, black_key_width, black_key_height);
+        shader.setMvp(vp.multiplyCopy(model));
+        Shapes.Quad.draw();
+      }
+    }
+
+    requestAnimationFrame(webGlTest);
+  }
+
   function draw(){
     const ctx = context.current;
 
@@ -295,7 +407,7 @@ export function PianoCanvas(props: PianoCanvasProps){
             ctx.fillRect(x, 0, props.key_width, props.key_height);
           }
         }
-        if(notes_down.current[i]){
+        if(white_notes_down.current[i]){
           ctx.fillStyle = "blue";
           ctx.fillRect(x, 0, props.key_width, props.key_height);
         }
@@ -303,10 +415,10 @@ export function PianoCanvas(props: PianoCanvasProps){
       ctx.stroke();
       ctx.fillStyle = "blue";
       
-      for(let i = 0; i < props.notes_down.length; i++){
+      for(let i = 0; i < props.white_notes_down.length; i++){
         
         const x = props.key_width*i;
-        if(props.notes_down[i]){
+        if(props.white_notes_down[i]){
           ctx.fillRect(x, 0, props.key_width, props.key_height);
         }
       }
@@ -376,6 +488,7 @@ export function PianoCanvas(props: PianoCanvasProps){
     console.log(vnf);
     props.onKeyboardNoteDown(vnf);
     mouse_down.current = vnf;
+    piano_state.current.mouse_down = vnf;
   }
   function handleMouseUp(e: React.MouseEvent<HTMLCanvasElement>){
     const rect = e.currentTarget.getBoundingClientRect();
@@ -385,6 +498,7 @@ export function PianoCanvas(props: PianoCanvasProps){
     console.log(vnf);
     props.onKeyboardNoteUp(vnf);
     mouse_down.current = null;
+    piano_state.current.mouse_down = null;
   }
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>){
     const rect = e.currentTarget.getBoundingClientRect();
@@ -392,6 +506,7 @@ export function PianoCanvas(props: PianoCanvasProps){
     const y = e.clientY - rect.y;
     const vnf = findNoteFrom(x, y);
     mouse_over.current = vnf;
+    piano_state.current.mouse_over = vnf;
     console.log(vnf);
   }
   function handleMouseLeave(e: React.MouseEvent<HTMLCanvasElement>){

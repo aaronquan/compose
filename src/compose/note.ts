@@ -31,6 +31,8 @@ export enum Note{
   C, D, E, F, G, A, B
 }
 
+export const black_keys = [false, true, true, false, true, true, true];
+
 class NoteUtils{
   static asArray = new CircularArray<number>(enumToArray(Note));
   static toString(n:Note): string{
@@ -181,7 +183,9 @@ const baseNoteCOrderNotes = baseNoteCOrder.map(i => baseNotes[i]);
 
 type RealNoteId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
-class RealNote{
+
+// notes that a piano would play in ids
+export class RealNote{
   private static baseNoteToNoteIdMap: Map<BaseNoteId, RealNoteId> = new Map([
     [0, 11], [1,0], [2, 1], [3, 1], [4, 2], [5, 3],
     [6, 3], [7, 4], [8, 5], [9, 4], [10, 5], [11, 6],
@@ -221,7 +225,7 @@ class RealNote{
 
   }
 
-  static getRealNoteFromId(id:RealNoteId): RealNote{
+  static getRealNoteFromId(id:number): RealNote{
     //if(id < 0 || id >= RealNote.real_notes.length){
     //  return null;
     //}
@@ -320,6 +324,12 @@ export function getBaseNote(note:Note, accidental: Accidental):BaseNote{
       this.addNoteTone(id);
     }
     return this.note_tones.get(id)!;
+  }
+
+  static getNoteToneFromRealNoteAndOctave(rn: RealNote, octave: number): RealNoteTone{
+    //todo
+    const id = RealNoteTone.getNoteId(rn, octave);
+    return RealNoteTone.getNoteToneFromId(id);
   }
 
   static getNoteToneFromNoteAndOctave(note: Note, acc: Accidental, octave: number): RealNoteTone{
