@@ -7,7 +7,7 @@ uniform float u_left;
 uniform float u_right;
 uniform float u_top;
 uniform float u_bot;
-uniform flaot u_circle_radius;
+uniform float u_circle_radius;
 uniform float u_size; // between 0 and 0.5
 uniform vec3 u_colour;
 uniform vec3 u_background_colour;
