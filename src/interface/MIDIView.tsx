@@ -5,7 +5,19 @@ import WebGL from "./../WebGL/globals";
 import * as Shapes from "./../WebGL/Shapes/Shapes";
 import * as Shader from "./../WebGL/Shaders/custom";
 import * as Matrix from "./../WebGL/Matrix/matrix";
+import * as PianoRenderer from "../renderers/piano";
+import * as Note from "./../compose/note";
 
+import * as WebGLGeneral from "./../WebGL/globals";
+
+const default_piano_props = {
+  white_keys: 29,
+  starting_note: Note.Note.C,
+  black_key_width_ratio: 0.7,
+  black_key_height_ratio: 0.6,
+  key_width: 30,
+  key_height: 100
+}
 
 type MIDIViewProps = {
   start_id: number;
@@ -17,11 +29,15 @@ export function MIDIView(props: MIDIViewProps){
   const w = 200;
   const h = 200;
   const canvas = useRef<HTMLCanvasElement>(null);
+  const piano_renderer = useRef<PianoRenderer.StaticPianoRenderer | undefined>();
   useEffect(() => {
     const c = canvas.current;
     if(c != null){
       WebGL.initialise(c);
-      drawGrid();
+      piano_renderer.current = new PianoRenderer.StaticPianoRenderer(w, h);
+      //drawGrid();
+      //drawPiano();
+      WebGLGeneral.testBasicModel();
     }
   }, []);
   function drawGrid(){
@@ -39,6 +55,16 @@ export function MIDIView(props: MIDIViewProps){
     shader.setMvp(vp.multiplyCopy(l_model));
     Shapes.CenterQuad.draw();
     //Shapes.Quad.draw();
+  }
+  function drawPiano(){
+    if(piano_renderer.current != undefined){
+      const piano_props = {
+        x: 0, y: 0,
+        ...default_piano_props,
+        orientation: "up" as PianoRenderer.PianoOrientation
+      }
+      piano_renderer.current.draw(piano_props);
+    }
   }
   return (
     <canvas ref={canvas} width={200} height={200}/>

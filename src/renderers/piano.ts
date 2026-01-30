@@ -31,8 +31,6 @@ export class PianoRenderer{
     const shader = new Shader.MVPColourProgram();
     const vp = this.vp;
 
-    //console.log(props.mouse_over);
-
     //white key block
     const block_width = props.key_width*props.white_keys;
     const block_height = props.key_height;
@@ -111,4 +109,47 @@ export class PianoRenderer{
     requestAnimationFrame(() => this.draw(props, piano_state));
   }
 
+}
+
+type Int32 = number;
+type Double = number;
+
+
+//black keys are facing direction
+export type PianoOrientation = "left" | "up" | "right" | "down";
+
+
+type StaticPianoDrawProps = {
+  x: Int32;
+  y: Int32;
+  white_keys: Int32;
+  key_width: Int32;
+  key_height: Int32;
+  black_key_width_ratio: Double;
+  black_key_height_ratio: Double;
+  starting_note: Note.Note;
+  orientation: PianoOrientation;
+};
+
+export class StaticPianoRenderer{
+  colour_shader: Shader.MVPColourProgram;
+  vp: Matrix.TransformationMatrix3x3;
+  constructor(width: number, height: number){
+    this.vp = Matrix.TransformationMatrix3x3.orthographic(0, width, height, 0);
+    this.colour_shader = new Shader.MVPColourProgram();
+  }
+  draw(props: StaticPianoDrawProps){
+    const gl = WebGL.WebGL;
+    if(gl == undefined) return;
+    const is_left_right = props.orientation == "left" || props.orientation == "right";
+    const block_width = is_left_right ? props.white_keys*props.key_width : props.key_height;
+    const block_height = is_left_right ? props.key_height : props.white_keys*props.key_width;
+
+    this.colour_shader.use();
+    this.colour_shader.setColour(1, 1, 1);
+    const block_model = gl.rectangleModel(props.x, props.y, block_width, block_height);
+    this.colour_shader.setMvp(this.vp.multiplyCopy(block_model));
+    Shapes.Quad.draw();
+
+  }
 }
