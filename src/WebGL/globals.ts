@@ -53,6 +53,8 @@ export class WebGL{
 
 type BasicModelType = "Rect" | "Line";
 
+
+//can only draw rects
 class BasicModel{
   static colour_shader: Shader.MVPColourProgram;
 
@@ -61,11 +63,11 @@ class BasicModel{
     this.colour_shader = new Shader.MVPColourProgram();
   }
 
-  parts: Matrix.TransformationMatrix3x3[];
+  parts: BasicModelItem2D[];
   constructor(){
     this.parts = [];
   }
-  addPart(part: Matrix.TransformationMatrix3x3){
+  addPart(part: BasicModelItem2D){
     this.parts.push(part);
   }
   draw(p: Matrix.TransformationMatrix3x3){
@@ -73,12 +75,25 @@ class BasicModel{
     shader.use();
     shader.setColour(1, 1, 1);
     for(const model of this.parts){
-      shader.setMvp(p.multiplyCopy(model));
+      shader.setMvp(p.multiplyCopy(model.transformation));
+      shader.setColour(model.colour.red, model.colour.green, model.colour.blue);
       Shapes.Quad.drawRelative();
     }
   }
 }
 
+type ColourRGB = {
+  red: Float;
+  green: Float;
+  blue: Float;
+}
+
+type BasicModelItem2D = {
+  colour: ColourRGB;
+  transformation: Matrix.TransformationMatrix3x3;
+}
+
+/*
 class BasicModelItem{
   type: BasicModelType;
   model: Matrix.TransformationMatrix3x3;
@@ -99,7 +114,7 @@ class BasicModelItem{
     const m = this.model.multiplyCopy(tm);
 
   }
-}
+}*/
 
 export function testBasicModel(){
   const pers = Matrix.TransformationMatrix3x3.orthographic(0, 10, 10, 0);
@@ -107,8 +122,19 @@ export function testBasicModel(){
   const s2 = WebGL.rectangleModel(5, 5, 5, 5);
   const bm = new BasicModel();
   BasicModel.init();
-  bm.addPart(s1);
-  bm.addPart(s2);
+
+  const white = {red: 1, green: 1, blue: 1};
+  const blue = {red: 0, green: 0, blue: 1};
+  bm.addPart({colour: white, transformation: s1});
+  bm.addPart({colour: white, transformation: s2});
+
+
+  const s3 = WebGL.rectangleModel(3, 5, 2, 2);
+  const s4 = WebGL.rectangleModel(5,3, 2, 2);
+  bm.addPart({colour: blue, transformation: s3});
+  bm.addPart({colour: blue, transformation: s4});
+
+
   bm.draw(pers);
   //Shapes.Quad.draw();
 }
