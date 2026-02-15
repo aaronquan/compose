@@ -131,6 +131,35 @@ type StaticPianoDrawProps = {
   orientation: PianoOrientation;
 };
 
+export class PianoModel{
+  //model of piano with rects
+
+
+  //model is size 1*1
+  static generateModel(white_keys: Int32, starting_note: Note.Note, 
+    black_key_height_ratio: Double=0.5, black_key_width_ratio: Double=0.5): WebGL.ModelItem[] {
+    const model = [];
+    //model is drawn in order also replace type with proper type
+    const block = WebGL.WebGL.rectangleModel(0, 0, 1, 1);
+    const white = {colour: {r: 1, g: 1, b: 1}};
+    const black = {colour: {r: 0, g: 0, b: 0}};
+    model.push({white, model: block});
+
+    const white_scale = 1.0/white_keys;
+
+    //black keys
+    for(let i = 0; i < white_keys; i++){
+      const has_black_key = i !== 0 && Note.white_keys_with_black_keys[(i+starting_note.valueOf())%7];
+      if(has_black_key){
+        white_scale*black
+      }
+    }
+
+    
+    return model;
+  }
+}
+
 export class StaticPianoRenderer{
   colour_shader: Shader.MVPColourProgram;
   vp: Matrix.TransformationMatrix3x3;

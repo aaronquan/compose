@@ -74,9 +74,15 @@ class BasicModel{
     shader.setColour(1, 1, 1);
     for(const model of this.parts){
       shader.setMvp(p.multiplyCopy(model));
+      //shader.setMvp(model.multiplyCopy(p));
       Shapes.Quad.drawRelative();
     }
   }
+}
+
+export type ModelItem = {
+  colour: {r: Float, g: Float, b: Float};
+  model: Matrix.TransformationMatrix3x3;
 }
 
 class BasicModelItem{
@@ -103,13 +109,18 @@ class BasicModelItem{
 
 export function testBasicModel(){
   const pers = Matrix.TransformationMatrix3x3.orthographic(0, 10, 10, 0);
+  const view = Matrix.TransformationMatrix3x3.identity();
+  view.multiply(Matrix.TransformationMatrix3x3.translate(1, 1));
+
+  const vp = pers.multiplyCopy(view);
   const s1 = WebGL.rectangleModel(0, 0, 5, 5);
   const s2 = WebGL.rectangleModel(5, 5, 5, 5);
+  console.log(vp);
   const bm = new BasicModel();
   BasicModel.init();
   bm.addPart(s1);
   bm.addPart(s2);
-  bm.draw(pers);
+  bm.draw(vp);
   //Shapes.Quad.draw();
 }
 

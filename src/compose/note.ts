@@ -31,7 +31,7 @@ export enum Note{
   C, D, E, F, G, A, B
 }
 
-export const black_keys = [false, true, true, false, true, true, true];
+export const white_keys_with_black_keys = [false, true, true, false, true, true, true];
 
 class NoteUtils{
   static asArray = new CircularArray<number>(enumToArray(Note));

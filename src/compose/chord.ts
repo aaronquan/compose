@@ -17,13 +17,18 @@ const ChordTypesEnum = {
   major: 0,
   major7: 1,
   major7Dom: 2,
-  minor: 3
+  minor: 3,
+  minor7: 4
 } as const;
 
 type ChordTypes = (typeof ChordTypesEnum)[keyof typeof ChordTypesEnum];
 
 const chordNoteMap:Map<ChordTypes, Char[]>  = new Map();
 chordNoteMap.set(ChordTypesEnum.major, majorTriad);
+chordNoteMap.set(ChordTypesEnum.major7, major7);
+chordNoteMap.set(ChordTypesEnum.major7Dom, major7Dom);
+chordNoteMap.set(ChordTypesEnum.minor, minorTriad);
+chordNoteMap.set(ChordTypesEnum.minor7, minor7);
 
 
 function getNotes(base:BaseNote){
@@ -42,6 +47,39 @@ export class BaseChord{
     const chordOffsetArr = chordNoteMap.get(chord)!;
     const notes = chordOffsetArr.map((offset) => Note.RealNote.getRealNoteFromId(note.id+offset));
     return notes;
+  }
+  
+  //notes: Note.RealNote[];
+  base_note: Note.RealNote;
+  ctype: ChordTypes;
+  constructor(base: Note.RealNote, ctype: ChordTypes){
+    //const chord_offset_arr = chordNoteMap.get(ctype)!;
+    this.base_note = base;
+    this.ctype = ctype;
+    //this.notes = chord_offset_arr.map((offset) => Note.RealNote.getRealNoteFromId(base.id+offset));
+  }
+
+}
+
+export class RealChord{
+  octave: number;
+  base: BaseChord;
+  inversion: number;
+  constructor(base: BaseChord, oct: number){
+    this.base = base;
+    this.octave = oct;
+    this.inversion = 0;
+  }
+  toRealNotes(): Note.RealNoteTone[]{
+    const chord_offset_arr = chordNoteMap.get(this.base.ctype)!;
+    const base_notes = chord_offset_arr.map((offset) => Note.RealNote.getRealNoteFromId(this.base.base_note.id+offset));
+    const notes = [];
+    //no inversion i.e. inversion=0
+    for(let i = 0; i < base_notes.length; i++){
+      notes.push(Note.RealNoteTone.getNoteToneFromRealNoteAndOctave(base_notes[i], this.octave));
+    }
+    return notes;
+    //this.base.notes[0].
   }
 }
 
