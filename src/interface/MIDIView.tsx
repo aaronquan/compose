@@ -26,18 +26,22 @@ type MIDIViewProps = {
 }
 
 export function MIDIView(props: MIDIViewProps){
-  const w = 200;
+  const w = 800;
   const h = 200;
   const canvas = useRef<HTMLCanvasElement>(null);
   const piano_renderer = useRef<PianoRenderer.StaticPianoRenderer | undefined>();
   useEffect(() => {
     const c = canvas.current;
     if(c != null){
+      c.width = w;
+      c.height = h;
       WebGL.initialise(c);
       piano_renderer.current = new PianoRenderer.StaticPianoRenderer(w, h);
       //drawGrid();
       //drawPiano();
-      WebGLGeneral.testBasicModel();
+      //WebGLGeneral.testBasicModel();
+      WebGLGeneral.BasicModel.init();
+      PianoRenderer.PianoModelGenerator.modelTest2();
     }
   }, []);
   function drawGrid(){

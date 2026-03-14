@@ -6,6 +6,7 @@ import * as Shader from "./Shaders/custom";
 import * as Shapes from "./Shapes/Shapes"
 import * as Matrix from "./Matrix/matrix";
 import * as Line from "./Shapes/Line"
+import * as Colour from "./colour"
 
 type Float = number;
 
@@ -55,7 +56,7 @@ type BasicModelType = "Rect" | "Line";
 
 
 //can only draw rects
-class BasicModel{
+export class BasicModel{
   static colour_shader: Shader.MVPColourProgram;
 
 
@@ -73,29 +74,33 @@ class BasicModel{
   draw(p: Matrix.TransformationMatrix3x3){
     const shader = BasicModel.colour_shader;
     shader.use();
-    shader.setColour(1, 1, 1);
+    //shader.setColour(1, 1, 1);
     for(const model of this.parts){
       shader.setMvp(p.multiplyCopy(model.transformation));
       shader.setColour(model.colour.red, model.colour.green, model.colour.blue);
       Shapes.Quad.drawRelative();
     }
   }
+  static drawItem(vp: Matrix.TransformationMatrix3x3, item: BasicModelItem2D){
+    const shader = BasicModel.colour_shader;
+    shader.use();
+    shader.setColour(item.colour.red, item.colour.green, item.colour.blue);
+    shader.setMvp(vp.multiplyCopy(item.transformation));
+    Shapes.Quad.draw();
+  }
+  static defaultItem(): BasicModelItem2D{
+    return {colour: Colour.ColourUtils.white(), transformation: Matrix.TransformationMatrix3x3.identity()};
+  }
 }
 
-
-type ColourRGB = {
-  red: Float;
-  green: Float;
-  blue: Float;
-}
-
-type BasicModelItem2D = {
-  colour: ColourRGB;
+export type BasicModelItem2D = {
+  colour: Colour.ColourRGB;
   transformation: Matrix.TransformationMatrix3x3;
 }
 
+
+
 /*
->>>>>>> 69862c83923894ea990dc425966455449d1864a6
 class BasicModelItem{
   type: BasicModelType;
   model: Matrix.TransformationMatrix3x3;

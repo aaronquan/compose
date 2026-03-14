@@ -34,12 +34,12 @@ function App() {
   return (
     <>
       <div>
-        {/*<MIDIView start_id={5} end_id={10}>*/}
-        {<>
+        {<MIDIView start_id={5} end_id={10}/>}
+        {/*<>
         <RhythmTester audio_context={audio_context.current}/>
         <PianoKeys audio_context={audio_context.current}/>
         <MIDIKeyboardVisuals audio_context={audio_context.current}/>
-        <TempoSetter audio_context={audio_context.current} onTempoChange={testTempoChange}/></>}
+        <TempoSetter audio_context={audio_context.current} onTempoChange={testTempoChange}/></>*/}
         {/*ss
         <MIDITester audio_context={audio_context.current}/>
         /*<PianoView white_keys={29} starting_note={Note.C} audio_context={audio_context.current}/>*/}

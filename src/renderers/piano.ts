@@ -4,6 +4,9 @@ import * as Shapes from "./../WebGL/Shapes/Shapes";
 import * as Shader from "./../WebGL/Shaders/custom";
 import * as Matrix from "./../WebGL/Matrix/matrix";
 import * as Note from "../compose/note";
+import * as Colour from "./../WebGL/colour";
+
+type Float = number;
 
 export type PianoDrawInteractiveProps = PianoDrawProps & {
   mouse_down: VisualNoteFind | null;
@@ -89,7 +92,7 @@ export class PianoRenderer{
 
     shader.setColour(0,0,0);
     for(let i = 0; i < props.white_keys; i++){
-      const has_black_key = i !== 0 && Note.black_keys[(i+(props.starting_note ? props.starting_note.valueOf() : 0))%Note.black_keys.length];
+      const has_black_key = i !== 0 && Note.white_keys_with_black_keys[(i+(props.starting_note ? props.starting_note.valueOf() : 0))%Note.white_keys_with_black_keys.length];
       if(has_black_key){
         if(props.mouse_down && props.mouse_down.visual_note.id == i && props.mouse_down.visual_note.is_black){
           shader.setColour(0, 1, 0);
@@ -131,32 +134,118 @@ type StaticPianoDrawProps = {
   orientation: PianoOrientation;
 };
 
-export class PianoModel{
+class BasePianoModel{
+  white_scale: Double; // thickness of generated note
+
+  bg: WebGL.BasicModelItem2D;
+
+  black_key_fills: WebGL.BasicModel;
+  white_key_lines: WebGL.BasicModel;
+
+  constructor(){
+    this.white_scale = 0.5;
+    this.black_key_fills = new WebGL.BasicModel();
+    this.bg = WebGL.BasicModel.defaultItem();
+    this.white_key_lines = new WebGL.BasicModel();
+  }
+
+  draw(vp: Matrix.TransformationMatrix3x3){
+    console.log(this.bg);
+    WebGL.BasicModel.drawItem(vp, this.bg);
+    this.black_key_fills.draw(vp);
+    this.white_key_lines.draw(vp);
+  }
+
+  //keys: WebGL.BasicModel;
+}
+
+export class PianoModelGenerator{
+  static modelTest(){
+    const piano_model = PianoModelGenerator.generateModel(28, Note.Note.A);
+    const vp = Matrix.TransformationMatrix3x3.orthographic(0, 1, 1, 0);
+    //piano_model.model.draw(vp);
+  }
+
+  static modelTest2(){
+    const piano_model = PianoModelGenerator.generateModel(28, Note.Note.A);
+    const vp = Matrix.TransformationMatrix3x3.orthographic(0, 1, 1, 0);
+    piano_model.draw(vp);
+  }
+
+
   //model of piano with rects
 
 
   //model is size 1*1
   static generateModel(white_keys: Int32, starting_note: Note.Note, 
-    black_key_height_ratio: Double=0.5, black_key_width_ratio: Double=0.5): WebGL.ModelItem[] {
-    const model = [];
+    black_key_height_ratio: Double=0.6, black_key_width_ratio: Double=0.7): BasePianoModel {
+    const piano_model = new BasePianoModel();
+    const model = new WebGL.BasicModel();
     //model is drawn in order also replace type with proper type
     const block = WebGL.WebGL.rectangleModel(0, 0, 1, 1);
-    const white = {colour: {r: 1, g: 1, b: 1}};
-    const black = {colour: {r: 0, g: 0, b: 0}};
-    model.push({white, model: block});
+    const white = Colour.ColourUtils.white();
+    const black = Colour.ColourUtils.black();
+    const grey = Colour.ColourUtils.fromRGB(0.5, 0.5, 0.5);
+    const red = Colour.ColourUtils.red();
+    const blue = Colour.ColourUtils.blue();
+    const green = Colour.ColourUtils.green();
+    //model.push({white, model: block});
+    model.addPart({colour: white, transformation: block});
+    piano_model.bg = {colour: white, transformation: block};
 
     const white_scale = 1.0/white_keys;
 
-    //black keys
+    const black_key_width = black_key_width_ratio*white_scale;
+    const black_key_height = black_key_height_ratio;
+
+    //vertical lines
+    const line_scale = 0.20*white_scale;
+    const half_line = line_scale*0.5;
     for(let i = 0; i < white_keys; i++){
-      const has_black_key = i !== 0 && Note.white_keys_with_black_keys[(i+starting_note.valueOf())%7];
-      if(has_black_key){
-        white_scale*black
-      }
+      const x = i*white_scale - half_line;
+      const line_model = WebGL.WebGL.rectangleModel(x, 0, line_scale, 1);
+      const part = {colour: grey, transformation: line_model};
+      model.addPart(part);
+      piano_model.white_key_lines.addPart(part);
     }
 
+
+    const line = 0;
+
+    //black keys
+    for(let i = 0; i < white_keys; i++){
+      const has_black_key = i !== 0 && Note.white_keys_with_black_keys[(i+starting_note.valueOf())%Note.white_keys_with_black_keys.length];
+      if(has_black_key){
+        //key fill
+        const x = white_scale*i-(black_key_width/2);
+        const b_key_model = WebGL.WebGL.rectangleModel(x, 0, black_key_width, black_key_height);
+        const part = {colour: black, transformation: b_key_model};
+        model.addPart(part);
+        piano_model.black_key_fills.addPart(part);
+
+        //key border lines
+        const vleft_key_model = WebGL.WebGL.rectangleModel(x-half_line, 0, line_scale, black_key_height);
+        model.addPart({colour: red, transformation: vleft_key_model});
+        const vright_key_model = WebGL.WebGL.rectangleModel(x-half_line+black_key_width, 0, line_scale, black_key_height);
+        model.addPart({colour: blue, transformation: vright_key_model});
+
+        // add line thickness for smooth border lines
+        const vbot_key_model = WebGL.WebGL.rectangleModel(x-half_line, 0, black_key_width, line_scale);
+        model.addPart({colour: green, transformation: vbot_key_model});
+        const vtop_key_model = WebGL.WebGL.rectangleModel(x-half_line, black_key_height, black_key_width, line_scale);
+        model.addPart({colour: red, transformation: vtop_key_model});
+      }
+
+    }
+
+    //horizontal lines
+    const top_line_model = WebGL.WebGL.rectangleModel(0, 0, 1, half_line);
+    model.addPart({colour: red, transformation: top_line_model});
+    const bot_line_model = WebGL.WebGL.rectangleModel(0, 1-half_line, 1, half_line);
+    model.addPart({colour: red, transformation: bot_line_model});
     
-    return model;
+    return piano_model;
+    //return {white_scale, model};
   }
 }
 

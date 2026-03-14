@@ -21,8 +21,11 @@ export function ColourShaderProgramMix<TBase extends Shader.CustomShaderPrograma
       if(ColourFragmentShader.shader){
         this.program.addFragment(ColourFragmentShader.shader)
       }else{
+        //load here?
         throw new Error(`${this.fragment_name} not loaded`);
       }
+      //then
+      //this.program.addFragment(ColourFragmentShader.shader!);
     }
     protected override addFragmentUniformLocations(): void{
       this.colour_uniform_location = this.program.getUniformLocation('colour');
