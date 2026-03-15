@@ -58,12 +58,9 @@ type BasicModelType = "Rect" | "Line";
 //can only draw rects
 export class BasicModel{
   static colour_shader: Shader.MVPColourProgram;
-
-
   static init(){
     this.colour_shader = new Shader.MVPColourProgram();
   }
-
   parts: BasicModelItem2D[];
   constructor(){
     this.parts = [];
@@ -72,6 +69,9 @@ export class BasicModel{
     this.parts.push(part);
   }
   draw(p: Matrix.TransformationMatrix3x3){
+    if(BasicModel.colour_shader == undefined){
+      BasicModel.init();
+    }
     const shader = BasicModel.colour_shader;
     shader.use();
     //shader.setColour(1, 1, 1);

@@ -1,5 +1,5 @@
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, MouseEvent } from "react";
 
 import WebGL from "./../WebGL/globals";
 import * as Shapes from "./../WebGL/Shapes/Shapes";
@@ -30,8 +30,15 @@ export function MIDIView(props: MIDIViewProps){
   const h = 200;
   const canvas = useRef<HTMLCanvasElement>(null);
   const piano_renderer = useRef<PianoRenderer.StaticPianoRenderer | undefined>();
+  const piano_model_props = {
+    white_keys: 28,
+    starting_note: Note.Note.A,
+  }
+  const piano_model = useRef<PianoRenderer.BasePianoModel>(PianoRenderer.PianoModelGenerator.generateModel(piano_model_props.white_keys, piano_model_props.starting_note));
+  const vp = Matrix.TransformationMatrix3x3.orthographic(0, 1, 1, 0);
   useEffect(() => {
     const c = canvas.current;
+    //piano_model.current = PianoRenderer.PianoModelGenerator.generateModel(piano_model_props.white_keys, piano_model_props.starting_note);
     if(c != null){
       c.width = w;
       c.height = h;
@@ -41,7 +48,10 @@ export function MIDIView(props: MIDIViewProps){
       //drawPiano();
       //WebGLGeneral.testBasicModel();
       WebGLGeneral.BasicModel.init();
-      PianoRenderer.PianoModelGenerator.modelTest2();
+      const vp = Matrix.TransformationMatrix3x3.orthographic(0, 1, 1, 0);
+      piano_model.current.draw(vp);
+      console.log("drawing");
+      //PianoRenderer.PianoModelGenerator.modelTest2();
     }
   }, []);
   function drawGrid(){
@@ -70,7 +80,31 @@ export function MIDIView(props: MIDIViewProps){
       piano_renderer.current.draw(piano_props);
     }
   }
+  function handleMouseMove(e: MouseEvent<HTMLCanvasElement>){
+    const c = e.target as HTMLCanvasElement;
+    const rect = c.getBoundingClientRect();
+    console.log(rect);
+    const cx = e.clientX - rect.x;
+    const cy = e.clientY - rect.y;
+    console.log(`${cx}, ${cy}`);
+    const ox = cx*(1/rect.width);
+    const oy = cy*(1/rect.height);
+    if(cx > 0){
+      console.log(`${ox}, ${oy}`);
+      const ratio = piano_model.current.white_scale;
+      const wk = Math.floor(ox/ratio);
+      if(!piano_model.current.active_white_keys.has(wk)){
+        piano_model.current.active_white_keys.clear();
+        piano_model.current.setWhiteKey(wk);
+        piano_model.current.draw(vp);
+      }
+    }
+  }
+  function handleMouseOut(e: MouseEvent<HTMLCanvasElement>){
+    piano_model.current.active_white_keys.clear();
+    piano_model.current.draw(vp);
+  }
   return (
-    <canvas ref={canvas} width={200} height={200}/>
+    <canvas ref={canvas} width={200} height={200} onMouseMove={handleMouseMove} onMouseLeave={handleMouseOut}/>
   );
 }

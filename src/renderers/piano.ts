@@ -134,7 +134,13 @@ type StaticPianoDrawProps = {
   orientation: PianoOrientation;
 };
 
-class BasePianoModel{
+type ActiveKey = {
+  id: Int32,
+  colour: Colour.ColourRGB
+}
+
+export class BasePianoModel{
+  start_note: Note.Note;
   white_scale: Double; // thickness of generated note
 
   bg: WebGL.BasicModelItem2D;
@@ -142,18 +148,45 @@ class BasePianoModel{
   black_key_fills: WebGL.BasicModel;
   white_key_lines: WebGL.BasicModel;
 
+  black_key_lines: WebGL.BasicModel[];
+
+  white_key_highlight_models: WebGL.BasicModel;
+  active_white_keys: Map<Int32, Colour.ColourRGB>;
+
   constructor(){
+    this.start_note = Note.Note.A;
     this.white_scale = 0.5;
     this.black_key_fills = new WebGL.BasicModel();
     this.bg = WebGL.BasicModel.defaultItem();
     this.white_key_lines = new WebGL.BasicModel();
+    this.black_key_lines = [];
+
+    this.white_key_highlight_models = new WebGL.BasicModel();
+    this.active_white_keys = new Map();
+
+  }
+
+  setWhiteKey(id: Int32){
+    this.active_white_keys.set(id, Colour.ColourUtils.cyan());
+  }
+  removeActiveWhiteKey(id: Int32){
+    this.active_white_keys.delete(id);
   }
 
   draw(vp: Matrix.TransformationMatrix3x3){
     console.log(this.bg);
     WebGL.BasicModel.drawItem(vp, this.bg);
-    this.black_key_fills.draw(vp);
+    for(const [id, colour] of this.active_white_keys){
+      console.log(colour);
+      const model = this.white_key_highlight_models.parts[id];
+      model.colour = colour;
+      WebGL.BasicModel.drawItem(vp, model);
+    }
     this.white_key_lines.draw(vp);
+    this.black_key_fills.draw(vp);
+    for(const line of this.black_key_lines){
+      line.draw(vp);
+    }
   }
 
   //keys: WebGL.BasicModel;
@@ -194,6 +227,7 @@ export class PianoModelGenerator{
     piano_model.bg = {colour: white, transformation: block};
 
     const white_scale = 1.0/white_keys;
+    piano_model.white_scale = white_scale;
 
     const black_key_width = black_key_width_ratio*white_scale;
     const black_key_height = black_key_height_ratio;
@@ -207,8 +241,13 @@ export class PianoModelGenerator{
       const part = {colour: grey, transformation: line_model};
       model.addPart(part);
       piano_model.white_key_lines.addPart(part);
-    }
 
+      //white key models (for active keys)
+      const key_model = WebGL.WebGL.rectangleModel(x, 0, white_scale, 1);
+      piano_model.white_key_highlight_models.addPart({colour: white, transformation: key_model});
+    }
+    const end_line_part = {colour: grey, transformation: WebGL.WebGL.rectangleModel(1 - half_line, 0, line_scale, 1)};
+    piano_model.white_key_lines.addPart(end_line_part);
 
     const line = 0;
 
@@ -223,17 +262,30 @@ export class PianoModelGenerator{
         model.addPart(part);
         piano_model.black_key_fills.addPart(part);
 
+        const black_line_model = new WebGL.BasicModel();
         //key border lines
         const vleft_key_model = WebGL.WebGL.rectangleModel(x-half_line, 0, line_scale, black_key_height);
-        model.addPart({colour: red, transformation: vleft_key_model});
+        const vl_key_part = {colour: red, transformation: vleft_key_model};
+        model.addPart(vl_key_part);
+        black_line_model.addPart(vl_key_part);
+
         const vright_key_model = WebGL.WebGL.rectangleModel(x-half_line+black_key_width, 0, line_scale, black_key_height);
-        model.addPart({colour: blue, transformation: vright_key_model});
+        const vr_key_part = {colour: blue, transformation: vright_key_model};
+        model.addPart(vr_key_part);
+        black_line_model.addPart(vr_key_part);
 
         // add line thickness for smooth border lines
         const vbot_key_model = WebGL.WebGL.rectangleModel(x-half_line, 0, black_key_width, line_scale);
-        model.addPart({colour: green, transformation: vbot_key_model});
+        const vb_key_part = {colour: red, transformation: vbot_key_model};
+        model.addPart(vb_key_part);
+        black_line_model.addPart(vb_key_part);
+
         const vtop_key_model = WebGL.WebGL.rectangleModel(x-half_line, black_key_height, black_key_width, line_scale);
-        model.addPart({colour: red, transformation: vtop_key_model});
+        const vt_key_part = {colour: red, transformation: vtop_key_model};
+        model.addPart(vt_key_part);
+        black_line_model.addPart(vt_key_part);
+
+        piano_model.black_key_lines.push(black_line_model);
       }
 
     }
@@ -243,6 +295,8 @@ export class PianoModelGenerator{
     model.addPart({colour: red, transformation: top_line_model});
     const bot_line_model = WebGL.WebGL.rectangleModel(0, 1-half_line, 1, half_line);
     model.addPart({colour: red, transformation: bot_line_model});
+
+    piano_model.setWhiteKey(2);
     
     return piano_model;
     //return {white_scale, model};
