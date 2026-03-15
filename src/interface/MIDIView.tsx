@@ -83,14 +83,14 @@ export function MIDIView(props: MIDIViewProps){
   function handleMouseMove(e: MouseEvent<HTMLCanvasElement>){
     const c = e.target as HTMLCanvasElement;
     const rect = c.getBoundingClientRect();
-    console.log(rect);
+    //console.log(rect);
     const cx = e.clientX - rect.x;
     const cy = e.clientY - rect.y;
-    console.log(`${cx}, ${cy}`);
+    //console.log(`${cx}, ${cy}`);
     const ox = cx*(1/rect.width);
     const oy = cy*(1/rect.height);
     if(cx > 0){
-      console.log(`${ox}, ${oy}`);
+      //console.log(`${ox}, ${oy}`);
       const ratio = piano_model.current.white_scale;
       const wk = Math.floor(ox/ratio);
       if(!piano_model.current.active_white_keys.has(wk)){

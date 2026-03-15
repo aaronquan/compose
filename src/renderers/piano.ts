@@ -142,6 +142,7 @@ type ActiveKey = {
 export class BasePianoModel{
   start_note: Note.Note;
   white_scale: Double; // thickness of generated note
+  black_key_height_ratio: Double;
 
   bg: WebGL.BasicModelItem2D;
 
@@ -156,6 +157,7 @@ export class BasePianoModel{
   constructor(){
     this.start_note = Note.Note.A;
     this.white_scale = 0.5;
+    this.black_key_height_ratio = 0.5;
     this.black_key_fills = new WebGL.BasicModel();
     this.bg = WebGL.BasicModel.defaultItem();
     this.white_key_lines = new WebGL.BasicModel();
@@ -225,6 +227,7 @@ export class PianoModelGenerator{
     //model.push({white, model: block});
     model.addPart({colour: white, transformation: block});
     piano_model.bg = {colour: white, transformation: block};
+    piano_model.black_key_height_ratio = black_key_height_ratio;
 
     const white_scale = 1.0/white_keys;
     piano_model.white_scale = white_scale;
