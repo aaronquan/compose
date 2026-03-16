@@ -65,6 +65,11 @@ export class BasicModel{
   constructor(){
     this.parts = [];
   }
+  colourAll(colour: Colour.ColourRGB){
+    for(const part of this.parts){
+      part.colour = colour;
+    }
+  }
   addPart(part: BasicModelItem2D){
     this.parts.push(part);
   }
@@ -74,7 +79,6 @@ export class BasicModel{
     }
     const shader = BasicModel.colour_shader;
     shader.use();
-    //shader.setColour(1, 1, 1);
     for(const model of this.parts){
       shader.setMvp(p.multiplyCopy(model.transformation));
       shader.setColour(model.colour.red, model.colour.green, model.colour.blue);
@@ -98,31 +102,6 @@ export type BasicModelItem2D = {
   transformation: Matrix.TransformationMatrix3x3;
 }
 
-
-
-/*
-class BasicModelItem{
-  type: BasicModelType;
-  model: Matrix.TransformationMatrix3x3;
-  constructor(type: BasicModelType, model: Matrix.TransformationMatrix3x3){
-    this.type = type;
-    this.model = model;
-  }
-  getModel(){
-    switch(this.type){
-      case "Rect":
-
-      case "Line":
-        
-    }
-  }
-  draw(tm: Matrix.TransformationMatrix3x3){
-
-    const m = this.model.multiplyCopy(tm);
-
-  }
-}*/
-
 export function testBasicModel(){
   const pers = Matrix.TransformationMatrix3x3.orthographic(0, 10, 10, 0);
   const view = Matrix.TransformationMatrix3x3.identity();
@@ -145,10 +124,39 @@ export function testBasicModel(){
   const s4 = WebGL.rectangleModel(5,3, 2, 2);
   bm.addPart({colour: blue, transformation: s3});
   bm.addPart({colour: blue, transformation: s4});
-
-
   bm.draw(pers);
-  //Shapes.Quad.draw();
+}
+
+export class TextDrawer{
+  sprite_sheet_shader: Shader.MVPSpriteSheetProgram;
+  font: Texture.CustomFont;
+  constructor(){
+    this.sprite_sheet_shader = new Shader.MVPSpriteSheetProgram();
+    this.font = new Texture.CustomFont("letters-sheet.png");
+  }
+  loadFont(onLoaded:()=>void=()=>{}){
+    this.font.load(onLoaded);
+    this.font.active(1);
+  }
+  drawText(vp: Matrix.TransformationMatrix3x3, x: Float, y: Float, text: string, size: Float){
+    const gl = WebGL.gl!;
+    this.sprite_sheet_shader.use();
+    this.sprite_sheet_shader.setTextureId(1);
+    const scale = Matrix.TransformationMatrix3x3.scale(size, size);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    for(let i = 0; i < text.length; i++){
+      const cx = x+i*size;
+      const tr = Matrix.TransformationMatrix3x3.translate(cx, y);
+      const model = tr.multiplyCopy(scale);
+      this.sprite_sheet_shader.setMvp(vp.multiplyCopy(model));
+      this.font.setChar(this.sprite_sheet_shader, text[i]);
+      console.log(this.font)
+      Shapes.Quad.draw();
+      console.log("drawing "+text[i]);
+    }
+    gl.disable(gl.BLEND);
+  }
 }
 
 export default WebGL;

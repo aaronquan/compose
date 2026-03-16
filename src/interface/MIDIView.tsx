@@ -10,6 +10,8 @@ import * as Note from "./../compose/note";
 
 import * as WebGLGeneral from "./../WebGL/globals";
 
+type Double = number;
+
 const default_piano_props = {
   white_keys: 29,
   starting_note: Note.Note.C,
@@ -28,6 +30,7 @@ type MIDIViewProps = {
 export function MIDIView(props: MIDIViewProps){
   const w = 800;
   const h = 200;
+  const octave = useRef();
   const canvas = useRef<HTMLCanvasElement>(null);
   const piano_renderer = useRef<PianoRenderer.StaticPianoRenderer | undefined>();
   const piano_model_props = {
@@ -50,7 +53,6 @@ export function MIDIView(props: MIDIViewProps){
       WebGLGeneral.BasicModel.init();
       const vp = Matrix.TransformationMatrix3x3.orthographic(0, 1, 1, 0);
       piano_model.current.draw(vp);
-      console.log("drawing");
       //PianoRenderer.PianoModelGenerator.modelTest2();
     }
   }, []);
@@ -89,15 +91,58 @@ export function MIDIView(props: MIDIViewProps){
     //console.log(`${cx}, ${cy}`);
     const ox = cx*(1/rect.width);
     const oy = cy*(1/rect.height);
-    if(cx > 0){
-      //console.log(`${ox}, ${oy}`);
+    getPianoKeyFromModel(ox, oy);
+  }
+  function getPianoKeyFromModel(x: Double, y: Double){
+    if(x > 0){
+      console.log(`${x}, ${y}`);
       const ratio = piano_model.current.white_scale;
-      const wk = Math.floor(ox/ratio);
+      const start_note = piano_model.current.start_note;
+      const white_key_x = x / ratio;
+      const white_key = Math.floor(white_key_x);
+      const note_id = (white_key+start_note);
+      const octave = Math.floor(note_id / 7);
+      const note = note_id % 7;
+
+      //check black key hover
+      const black_width_ratio = piano_model.current.black_key_width_ratio;
+      const black_height_ratio = piano_model.current.black_key_height_ratio;
+      const white_key_edge = white_key_x % 1;
+      const bottom_edge = white_key_edge <= 0.5;
+      const edge_distance = bottom_edge ? white_key_edge : 1 - white_key_edge;
+
+      const is_black_y = y <= black_height_ratio;
+      const is_black_x = edge_distance < (black_width_ratio/2);
+      const acc_note = bottom_edge ? (note+6)%7 : note;
+      const accidental = is_black_x && is_black_y && Note.hasSharp(acc_note) ? Note.Accidental.Sharp : Note.Accidental.None;
+      //const white_key = Math.floor(x/ratio);
+      const note_adj = accidental == Note.Accidental.Sharp ? acc_note : note;
+      //const has_black_key = Note.white_keys_with_black_keys[(start_note+)%7];
+      console.log(piano_model.current.black_key_fills);
+      if(accidental === Note.Accidental.Sharp){
+        const bk = bottom_edge ? white_key : white_key+1;
+        if(bk >= 0){
+          //console.log(bk);
+          piano_model.current.active_white_keys.clear();
+          piano_model.current.clearBlacks();
+          piano_model.current.setBlackKey(bk);
+          piano_model.current.draw(vp);
+        }
+      }else{
+        piano_model.current.active_white_keys.clear();
+        piano_model.current.clearBlacks();
+        piano_model.current.setWhiteKey(white_key);
+        piano_model.current.draw(vp);
+      }
+      //const black_id = 
+      //console.log(has_black_key);
+      //console.log(wk);
+      /*
       if(!piano_model.current.active_white_keys.has(wk)){
         piano_model.current.active_white_keys.clear();
         piano_model.current.setWhiteKey(wk);
         piano_model.current.draw(vp);
-      }
+      }*/
     }
   }
   function handleMouseOut(e: MouseEvent<HTMLCanvasElement>){

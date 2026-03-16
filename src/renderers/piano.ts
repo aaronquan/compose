@@ -143,22 +143,28 @@ export class BasePianoModel{
   start_note: Note.Note;
   white_scale: Double; // thickness of generated note
   black_key_height_ratio: Double;
+  black_key_width_ratio: Double;
 
   bg: WebGL.BasicModelItem2D;
 
-  black_key_fills: WebGL.BasicModel;
+  black_key_fills: WebGL.BasicModel[];
   white_key_lines: WebGL.BasicModel;
 
   black_key_lines: WebGL.BasicModel[];
 
   white_key_highlight_models: WebGL.BasicModel;
   active_white_keys: Map<Int32, Colour.ColourRGB>;
+  active_black_keys: Set<Int32>;
+
+  horizontal_lines: WebGL.BasicModel;
+
 
   constructor(){
     this.start_note = Note.Note.A;
     this.white_scale = 0.5;
     this.black_key_height_ratio = 0.5;
-    this.black_key_fills = new WebGL.BasicModel();
+    this.black_key_width_ratio = 0.5;
+    this.black_key_fills = [];
     this.bg = WebGL.BasicModel.defaultItem();
     this.white_key_lines = new WebGL.BasicModel();
     this.black_key_lines = [];
@@ -166,6 +172,22 @@ export class BasePianoModel{
     this.white_key_highlight_models = new WebGL.BasicModel();
     this.active_white_keys = new Map();
 
+    this.active_black_keys = new Set();
+
+    this.horizontal_lines = new WebGL.BasicModel();
+
+  }
+
+  clearBlacks(){
+    for(const id of this.active_black_keys){
+      this.black_key_fills[id].colourAll(Colour.ColourUtils.black());
+    }
+    this.active_black_keys.clear();
+  }
+
+  setBlackKey(id: Int32){
+    this.active_black_keys.add(id);
+    this.black_key_fills[id].colourAll(Colour.ColourUtils.cyan());
   }
 
   setWhiteKey(id: Int32){
@@ -185,7 +207,9 @@ export class BasePianoModel{
       WebGL.BasicModel.drawItem(vp, model);
     }
     this.white_key_lines.draw(vp);
-    this.black_key_fills.draw(vp);
+    for(const fill of this.black_key_fills){
+      fill.draw(vp);
+    }
     for(const line of this.black_key_lines){
       line.draw(vp);
     }
@@ -235,6 +259,8 @@ export class PianoModelGenerator{
     const black_key_width = black_key_width_ratio*white_scale;
     const black_key_height = black_key_height_ratio;
 
+    piano_model.black_key_width_ratio = black_key_width_ratio;
+
     //vertical lines
     const line_scale = 0.20*white_scale;
     const half_line = line_scale*0.5;
@@ -257,15 +283,17 @@ export class PianoModelGenerator{
     //black keys
     for(let i = 0; i < white_keys; i++){
       const has_black_key = i !== 0 && Note.white_keys_with_black_keys[(i+starting_note.valueOf())%Note.white_keys_with_black_keys.length];
+      const black_line_model = new WebGL.BasicModel();
+      const black_key_fill = new WebGL.BasicModel();
+
       if(has_black_key){
         //key fill
         const x = white_scale*i-(black_key_width/2);
         const b_key_model = WebGL.WebGL.rectangleModel(x, 0, black_key_width, black_key_height);
         const part = {colour: black, transformation: b_key_model};
         model.addPart(part);
-        piano_model.black_key_fills.addPart(part);
+        black_key_fill.addPart(part);
 
-        const black_line_model = new WebGL.BasicModel();
         //key border lines
         const vleft_key_model = WebGL.WebGL.rectangleModel(x-half_line, 0, line_scale, black_key_height);
         const vl_key_part = {colour: red, transformation: vleft_key_model};
@@ -288,18 +316,24 @@ export class PianoModelGenerator{
         model.addPart(vt_key_part);
         black_line_model.addPart(vt_key_part);
 
-        piano_model.black_key_lines.push(black_line_model);
+        //piano_model.black_key_lines.push(black_line_model);
       }
-
+      piano_model.black_key_lines.push(black_line_model);
+      piano_model.black_key_fills.push(black_key_fill);
     }
 
     //horizontal lines
     const top_line_model = WebGL.WebGL.rectangleModel(0, 0, 1, half_line);
-    model.addPart({colour: red, transformation: top_line_model});
-    const bot_line_model = WebGL.WebGL.rectangleModel(0, 1-half_line, 1, half_line);
-    model.addPart({colour: red, transformation: bot_line_model});
+    const top_line_part = {colour: red, transformation: top_line_model};
+    model.addPart(top_line_part);
+    piano_model.horizontal_lines.addPart(top_line_part);
 
-    piano_model.setWhiteKey(2);
+    const bot_line_model = WebGL.WebGL.rectangleModel(0, 1-half_line, 1, half_line);
+    const bot_line_part = {colour: red, transformation: bot_line_model};
+    model.addPart(bot_line_part);
+    piano_model.horizontal_lines.addPart(bot_line_part);
+
+    //piano_model.setWhiteKey(2);
     
     return piano_model;
     //return {white_scale, model};
