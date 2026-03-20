@@ -7,8 +7,19 @@ import * as Shapes from "./Shapes/Shapes"
 import * as Matrix from "./Matrix/matrix";
 import * as Line from "./Shapes/Line"
 import * as Colour from "./colour"
+import * as Texture from "./Texture/texture"
 
 type Float = number;
+type Int32 = number;
+
+export * as Colour from "./colour";
+export * as Shapes from "./Shapes/Shapes";
+export * as Matrix from "./Matrix/matrix";
+export * as Texture from "./Texture/texture";
+export * as Line from "./Shapes/Line";
+export * as Shader from "./Shaders/custom"
+export * as App from "./app";
+
 
 export class WebGL{
   static gl: WebGL2RenderingContext | null;
@@ -127,35 +138,165 @@ export function testBasicModel(){
   bm.draw(pers);
 }
 
+export class FontLoader{
+  private fonts: Map<string, Texture.CustomFont>;
+  loaded: Int32;
+  loading: boolean; // prevention measure for loading while another load is active
+  to_load: Texture.CustomFont[];
+  finished_loading: Int32;
+  constructor(){
+    this.fonts = new Map();
+    this.loaded = 0;
+    this.loading = false;
+    this.to_load = [];
+    this.finished_loading = 0;
+  }
+  addFont(name: string){
+    const font = new Texture.CustomFont(name);
+    this.fonts.set(name, font);
+  }
+  loadFonts(onAllLoaded: () => void) {
+    function finishLoading(fl: FontLoader){
+      if(fl.finished_loading == fl.to_load.length){
+        console.log("end loading");
+        onAllLoaded();
+        fl.loading = false;
+      }
+    }
+    if(!this.loading){
+      console.log("start loading fonts ")
+      this.loading = true;
+      this.to_load = [];
+      for(const [name, font] of this.fonts){
+        this.to_load.push(font);
+      }
+      console.log(this.to_load);
+
+      for(const font of this.to_load){
+        font.load(() => {
+          this.loaded++;
+          this.finished_loading++;
+          console.log(`finished ${font.font_name}`);
+          finishLoading(this);
+        },
+        (e) => {
+          console.log(`error loading ${font.font_name} - ${e}`);
+          this.finished_loading++;
+          finishLoading(this);
+        });
+      }
+    }
+  }
+
+  getFont(name: string): Texture.CustomFont | undefined{
+    return this.fonts.get(name);
+  }
+}
+
 export class TextDrawer{
   sprite_sheet_shader: Shader.MVPSpriteSheetProgram;
-  font: Texture.CustomFont;
+  colour_sheet_shader: Shader.MVPSpriteSheetColourProgram;
+  font?: Texture.CustomFont;
   constructor(){
     this.sprite_sheet_shader = new Shader.MVPSpriteSheetProgram();
-    this.font = new Texture.CustomFont("letters-sheet.png");
+    this.colour_sheet_shader = new Shader.MVPSpriteSheetColourProgram();
+  }
+  setFont(font: Texture.CustomFont){
+    this.font = font;
   }
   loadFont(onLoaded:()=>void=()=>{}){
-    this.font.load(onLoaded);
-    this.font.active(1);
+  }
+
+  drawTextModelColour(mat: Matrix.TransformationMatrix3x3, text: string, size: Float, colour: Colour.ColourRGB){
+    if(this.font){
+      this.colour_sheet_shader.use();
+      this.colour_sheet_shader.setColourFromColourRGB(colour);
+      this.font.active(0);
+      this.colour_sheet_shader.setTextureId(0);
+      const scale = Matrix.TransformationMatrix3x3.scale(size, size);
+      const gl = WebGL.gl!;
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      for(let i = 0; i < text.length; i++){
+        if(text[i] == ' ') continue;
+        const tr = Matrix.TransformationMatrix3x3.translate(size*i,0);
+        const matrix = mat.multiplyCopy(tr.multiplyCopy(scale));
+        this.colour_sheet_shader.setMvp(matrix);
+        this.font.setChar(this.colour_sheet_shader, text[i]);
+        Shapes.Quad.drawRelative();
+      }
+
+      gl.disable(gl.BLEND);
+    }
+
   }
   drawText(vp: Matrix.TransformationMatrix3x3, x: Float, y: Float, text: string, size: Float){
-    const gl = WebGL.gl!;
-    this.sprite_sheet_shader.use();
-    this.sprite_sheet_shader.setTextureId(1);
-    const scale = Matrix.TransformationMatrix3x3.scale(size, size);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    for(let i = 0; i < text.length; i++){
-      const cx = x+i*size;
-      const tr = Matrix.TransformationMatrix3x3.translate(cx, y);
-      const model = tr.multiplyCopy(scale);
-      this.sprite_sheet_shader.setMvp(vp.multiplyCopy(model));
-      this.font.setChar(this.sprite_sheet_shader, text[i]);
-      console.log(this.font)
-      Shapes.Quad.draw();
-      console.log("drawing "+text[i]);
+    if(this.font){
+      const gl = WebGL.gl!;
+      this.sprite_sheet_shader.use();
+      this.font.active(1);
+      this.sprite_sheet_shader.setTextureId(1);
+      const scale = Matrix.TransformationMatrix3x3.scale(size, size);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      for(let i = 0; i < text.length; i++){
+        if(text[i] == ' ') continue;
+        const cx = x+i*size;
+        const tr = Matrix.TransformationMatrix3x3.translate(cx, y);
+        const model = tr.multiplyCopy(scale);
+        this.sprite_sheet_shader.setMvp(vp.multiplyCopy(model));
+        this.font.setChar(this.sprite_sheet_shader, text[i]);
+        Shapes.Quad.drawRelative();
+      }
+      gl.disable(gl.BLEND);
+    }else{
+      throw "TextDrawer: No font set";
     }
-    gl.disable(gl.BLEND);
+  }
+  drawTextModel(mat: Matrix.TransformationMatrix3x3, text: string, size: Float){
+    if(this.font){
+      const gl = WebGL.gl!;
+      this.sprite_sheet_shader.use();
+      this.font.active(1);
+      this.sprite_sheet_shader.setTextureId(1);
+      const scale = Matrix.TransformationMatrix3x3.scale(size, size);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      for(let i = 0; i < text.length; i++){
+        if(text[i] == ' ') continue;
+        const tr = Matrix.TransformationMatrix3x3.translate(size*i,0);
+        
+        const matrix = mat.multiplyCopy(tr.multiplyCopy(scale));
+        this.sprite_sheet_shader.setMvp(matrix);
+        this.font.setChar(this.sprite_sheet_shader, text[i]);
+        Shapes.Quad.drawRelative();
+      }
+      gl.disable(gl.BLEND);
+    }
+  }
+  drawTextColour(vp: Matrix.TransformationMatrix3x3, x: Float, y: Float, text: string, size: Float, colour: Colour.ColourRGB){
+    if(this.font){
+      const gl = WebGL.gl!;
+      this.colour_sheet_shader.use();
+      this.colour_sheet_shader.setColourFromColourRGB(colour);
+      this.font.active(1);
+      this.colour_sheet_shader.setTextureId(1);
+      const scale = Matrix.TransformationMatrix3x3.scale(size, size);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      for(let i = 0; i < text.length; i++){
+        if(text[i] == ' ') continue;
+        const cx = x+i*size;
+        const tr = Matrix.TransformationMatrix3x3.translate(cx, y);
+        const model = tr.multiplyCopy(scale);
+        this.colour_sheet_shader.setMvp(vp.multiplyCopy(model));
+        this.font.setChar(this.colour_sheet_shader, text[i]);
+        Shapes.Quad.drawRelative();
+      }
+      gl.disable(gl.BLEND);
+    }else{
+      throw "TextDrawer: No font set";
+    }
   }
 }
 

@@ -31,7 +31,7 @@ export class PianoRenderer{
   }
   draw(props: PianoDrawInteractiveProps, piano_state: PianoState){
     const gl = WebGL.WebGL;
-    const shader = new Shader.MVPColourProgram();
+    const shader = this.colour_shader;
     const vp = this.vp;
 
     //white key block

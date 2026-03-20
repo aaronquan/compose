@@ -21,11 +21,10 @@ export function Mvp2dShaderProgramMix<TBase extends Shader.CustomShaderProgramab
     private declare mvp_uniform_location: WebGLUniformLocation | null;
     protected override setupVertex(){
       this.vertex_name = 'Mvp2dShader';
-      if(Mvp2dVertexShader.shader){
-        this.program.addVertex(Mvp2dVertexShader.shader)
-      }else{
-        throw new Error(`${this.vertex_name} not loaded`);
+      if(!Mvp2dVertexShader.shader){
+        Mvp2dVertexShader.load();
       }
+      this.program.addVertex(Mvp2dVertexShader.shader!);
     }
     protected override addVertexAttributeLocations(): void{
       this.position_attribute_location = this.program.getAttributeLocation('a_position');
