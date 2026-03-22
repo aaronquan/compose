@@ -1,5 +1,6 @@
 
 import * as WebGL from "./../WebGL/globals";
+import * as Array from "./../utils/array";
 
 type Int32 = number;
 type Float = number;
@@ -11,9 +12,18 @@ type Coord = {
   y: Int32
 }
 
+
+type MIDINote = {
+  beat: Float,
+  length: Float
+}
+
+function MIDINoteCmp(n1: MIDINote, n2: MIDINote): Int32{
+  return n1.beat - n2.beat;
+}
+
+
 class MIDIGrid{
-
-
 
   beat_width: Int32;
   beat_gap: Int32;
@@ -33,6 +43,8 @@ class MIDIGrid{
   beat_header: boolean;
 
   scroll_drag: boolean;
+
+  notes: Map<Int32, Array.SortedArray<MIDINote>>;
   constructor(w: Int32, h: Int32){
     this.beat_width = 35;
     this.beat_gap = 0;
@@ -46,12 +58,13 @@ class MIDIGrid{
     this.max_display_height = 800;
     this.max_display_width = 500;
 
-
     this.scroll_height = 20;
-    this.scroll = 0.8;
+    this.scroll = 0;
     this.beat_header = true;
 
     this.scroll_drag = false;
+
+    this.notes = new Map();
   }
   
   mouseDown(canvas_point: WebGL.Matrix.Point2D){
@@ -61,24 +74,35 @@ class MIDIGrid{
     const sbar_leftover = this.max_display_width - sbar_width;
     const sbar_x = this.scroll*sbar_leftover;
     //test mouse over scroll bar
-    console.log(grid_point);
-    console.log(sbar_x);
-    if(grid_point.y > bottom-this.scroll_height && grid_point.y < bottom && 
-      grid_point.x > 0 && grid_point.x < this.max_display_width){
+    //console.log(grid_point);
+    //console.log(sbar_x);
+    if(this.insideGrid(canvas_point)){
+      if(this.insideScrollBar(grid_point)){
         if(grid_point.x > sbar_x && grid_point.x < sbar_x + sbar_width){
           console.log("inside scroll bar");
           this.scroll_drag = true;
         }else{
           this.setScroll(grid_point);
         }
-    }else{
-      // grid
+      }else if(this.active_coord != undefined){
+        const y = this.active_coord.y;
+        if(!this.notes.has(y)){
+          this.notes.set(y, new Array.SortedArray([], MIDINoteCmp));
+        }
+        this.notes.get(y)!.add({beat: this.active_coord.x, length: 1});
+        // grida
+      }
     }
   }
   mouseUp(canvas_point: WebGL.Matrix.Point2D){
     this.scroll_drag = false;
-    console.log(this.startDisplayX());
-    console.log(this.endDisplayX());
+    //console.log(this.startDisplayX());
+    //console.log(this.endDisplayX());
+  }
+  insideScrollBar(grid_point: WebGL.Matrix.Point2D): boolean{
+    const bottom = this.displayHeight();
+    return grid_point.y > bottom-this.scroll_height && grid_point.y < bottom && 
+        grid_point.x > 0 && grid_point.x < this.max_display_width
   }
   insideGrid(canvas_point: WebGL.Matrix.Point2D): boolean{
     return canvas_point.x > this.top_left.x && canvas_point.x < this.max_display_width+this.top_left.x
@@ -134,6 +158,15 @@ class MIDIGrid{
   }
   getXOffset(): Int32{
     return (this.max_display_width-this.totalWidth())*this.scroll;
+  }
+
+  getXGlobalOffset(): Int32{
+    return (this.max_display_width-this.totalWidth())*this.scroll+this.top_left.y;
+  }
+
+  //grid offset from global
+  getYGlobalOffset(): Int32{
+    return this.beat_header ? this.beat_height+this.top_left.y : this.top_left.y;
   }
   hasScroll(): boolean{
     return this.totalWidth() > this.max_display_width;
@@ -227,11 +260,13 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
 
 export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
   colour_shader: WebGL.Shader.MVPColourProgram;
+  circle_only_shader: WebGL.Shader.MVPCircleOnlyProgram;
   text_drawer: WebGL.TextDrawer;
   fonts: WebGL.FontLoader;
 
   constructor(){
     this.colour_shader = new WebGL.Shader.MVPColourProgram();
+    this.circle_only_shader = new WebGL.Shader.MVPCircleOnlyProgram();
     this.text_drawer = new WebGL.TextDrawer();
     this.fonts = new WebGL.FontLoader();
   }
@@ -300,6 +335,7 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
       x += beat_width + beat_gap;
     }
 
+
     /*
     for(let bar = 0; bar < engine.bars; bar++){
       for(let beat = 0; beat < engine.beats_per_bar; beat++){
@@ -323,22 +359,47 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
         const model = WebGL.WebGL.rectangleModel(x+x_offset, y, beat_width, beat_height);
         this.colour_shader.use();
         this.colour_shader.setMvp(vp.multiplyCopy(model));
-        if(engine.grid.active_coord != undefined && engine.grid.active_coord.y == note-engine.min_id && engine.grid.active_coord.x == id){
+        if(engine.grid.active_coord != undefined && 
+          engine.grid.active_coord.y == note-engine.min_id && 
+          engine.grid.active_coord.x == id){
           this.colour_shader.setColour(0.5, 1, 0.5);
         }else{
           this.colour_shader.setColour(1, 0.5, 0.5);
         }
-
         WebGL.Shapes.Quad.drawRelative();
         x += beat_width + beat_gap;
       }
     }
+
+    //active notes
+    this.colour_shader.use();
+    this.colour_shader.setColour(0, 1, 0.5);
+    const grid_y_offset = engine.grid.getYGlobalOffset();
+    for(const [id, note_arr] of engine.grid.notes){
+      const arr = note_arr.getArray();
+      for(const note of arr){
+        const nx = x_offset+tl.x+beat_width*note.beat;
+        const ny = grid_y_offset+beat_height*id;
+        const model = WebGL.WebGL.rectangleModel(nx, ny, beat_width, beat_height);
+        this.colour_shader.use();
+
+        this.colour_shader.setMvp(vp.multiplyCopy(model));
+        WebGL.Shapes.Quad.drawRelative();
+      }
+      //console.log(note_arr.getArray());
+    }
+
     gl.disable(gl.SCISSOR_TEST);
 
-    
-    //draw lines
-    
-    
+    //draw lines  
+    for(let id = start_beat_id; id <= end_beat_id; id++){
+      //vertical
+      const model = WebGL.WebGL.rectangleModel(x+x_offset, y, beat_width, grid_height);
+    }
+    //grid lines
+
+    //bar lines
+
     const right_grid = tl.x+grid_width;
     const bottom_grid = tl.y+grid_height;
 

@@ -13,6 +13,8 @@ import * as Shader from './shader'
 export class MVPColourProgram extends Fragment.ColourMixin(Vertex.Mvp2dMixin){};
 export class TransformColourProgram extends Fragment.ColourMixin(Vertex.Transform2dMixin){};
 export class TransformCircleProgram extends Fragment.CircleMixin(Vertex.Transform2dMixin){};
+export class MVPCircleProgram extends Fragment.CircleMixin(Vertex.Mvp2dMixin){};
+export class MVPCircleOnlyProgram extends Fragment.CircleOnlyMixin(Vertex.Mvp2dMixin){};
 export class MVPOutlineCircleProgram extends Fragment.CircleOutlineMixin(Vertex.Mvp2dMixin){};
 export class MVPSolidPathProgram extends Fragment.SolidPathMixin(Vertex.Mvp2dMixin){};
 export class MVPOutlineRectProgram extends Fragment.RectOutlineMixin(Vertex.Mvp2dMixin){};

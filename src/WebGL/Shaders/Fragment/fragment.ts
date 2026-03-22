@@ -1,5 +1,6 @@
 import * as Shader from './../shader';
 import * as Circle from './Program/circle';
+import * as CircleOnly from './Program/circle_only'
 import * as CircleOutline from './Program/circle_outline';
 import * as Colour from './Program/colour';
 import * as Line from './Program/line';
@@ -19,6 +20,7 @@ export function loadFragmentShaders(){
   SolidPath.SolidPathFragmentShader.load();
 }
 export const CircleMixin = Circle.CircleShaderProgramMix;
+export const CircleOnlyMixin = CircleOnly.CircleOnlyShaderProgramMix;
 export const CircleOutlineMixin = CircleOutline.CircleOutlineShaderProgramMix;
 export const ColourMixin = Colour.ColourShaderProgramMix;
 export const LineMixin = Line.LineShaderProgramMix;
