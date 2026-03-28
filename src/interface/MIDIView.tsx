@@ -27,6 +27,7 @@ const default_piano_props = {
 type MIDIViewProps = {
   start_id: number;
   end_id: number;
+  audio_context: AudioContext;
 }
 
 
@@ -94,7 +95,7 @@ export function MIDIView(props: MIDIViewProps){
       c.height = h;
       WebGL.initialise(c);
       piano_renderer.current = new PianoRenderer.StaticPianoRenderer(w, h);
-      engine.current = new MIDI.MIDIEngine(w, h, c);
+      engine.current = new MIDI.MIDIEngine(w, h, c, props.audio_context);
       renderer.current = new MIDI.MIDIRenderer();
       //drawGrid();
       //drawPiano();

@@ -34,7 +34,7 @@ function App() {
   return (
     <>
       <div>
-        {<MIDIView start_id={5} end_id={10}/>}
+        {<MIDIView start_id={5} end_id={10} audio_context={audio_context.current}/>}
         {/*<>
         <RhythmTester audio_context={audio_context.current}/>
         <PianoKeys audio_context={audio_context.current}/>

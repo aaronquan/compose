@@ -2,7 +2,10 @@
 import * as WebGL from "./../WebGL/globals";
 import * as ArrayUtils from "./../utils/array";
 import * as Button from "./../interface/components/button";
-import { Note } from "../compose/note";
+//import { Note } from "../compose/note";
+import * as Note from "../compose/note";
+
+import * as Audio from "./../compose/audio";
 
 type Int32 = number;
 type Float = number;
@@ -309,7 +312,9 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
 
   current_playing_notes: Map<Int32, MIDINote>;
 
-  constructor(width: Int32, height: Int32, canvas: HTMLCanvasElement){
+  sound_generator: Audio.OscillatorCollection;
+
+  constructor(width: Int32, height: Int32, canvas: HTMLCanvasElement, audio_context: AudioContext){
     super();
     this.bars = 20;
     this.beats_per_bar = 4;
@@ -342,6 +347,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     this.last_time = 0;
 
     this.current_playing_notes = new Map();
+    this.sound_generator = new Audio.OscillatorCollection(audio_context);
   }
   checkCurrentNotes(){
     const notes = this.grid.notes;
@@ -351,17 +357,28 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
         const note_arr = nts.getArray();
         let curr_note = note_arr[this.play_note_index[id]];
         while(curr_note.beat+curr_note.length < this.play_beat){
+          // stop current note
           curr_note.state = NoteStateEnum.Default;
           this.current_playing_notes.delete(curr_note.beat+this.min_id);
+
+          this.sound_generator.stop(Note.RealNoteTone.getNoteToneFromId(curr_note.id+this.min_id));
+          console.log("stopping: "+ (curr_note.id+this.min_id).toString());
           this.play_note_index[id]++;
           if(this.play_note_index[id] >= nts.size()) break;
           curr_note = note_arr[this.play_note_index[id]];
         }
         if(this.play_note_index[id] >= nts.size()) continue;
         if(curr_note.beat <= this.play_beat && this.play_beat < curr_note.beat+curr_note.length){
+          //play new note
+
           console.log(`Playing id ${id+this.min_id}`);
           curr_note.state = NoteStateEnum.Playing;
           this.current_playing_notes.set(curr_note.beat+this.min_id, curr_note);
+
+          if(!this.sound_generator.active_oscillators.has(id+this.min_id)){
+            console.log("adding sound "+(id+this.min_id).toString());
+            this.sound_generator.play(Note.RealNoteTone.getNoteToneFromId(id+this.min_id));
+          }
         }
       }
     }
@@ -373,10 +390,18 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       this.play_state = PlayStateEnum.Stopped;
       this.play_beat = 0;
       this.play_note_index = Array.from({length: this.max_id-this.min_id+1}, () => 0);
+      for(let [curr, note] of this.current_playing_notes){
+        note.state = NoteStateEnum.Default;
+      }
+      this.current_playing_notes.clear();
+      //this.playAudioNotes();
     }else if(this.play_state == PlayStateEnum.Stopped){
       this.play_button.text = "Stop";
       this.play_state = PlayStateEnum.Playing;
     }
+  }
+  playAudioNotes(){
+
   }
   getTotalBeats(): Int32{
     return this.bars*this.beats_per_bar;
@@ -394,7 +419,12 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       const beat_progress = minutes_elapsed*this.bpm;
       this.play_beat += beat_progress;
       this.checkCurrentNotes();
+
+
+      // add notes to play in 
     }
+
+
 
     this.last_time = t;
     //throw new Error("Method not implemented.");

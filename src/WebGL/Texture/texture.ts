@@ -130,7 +130,10 @@ export class CustomFont{
   load(onLoaded:()=>void=()=>{}, onError?: (e: any) => void){
     this.font_sheet.load(() => {
       File.fetchPublicFile(`${this.font_name}.txt`, (txt) => {
-        const sp = txt.split('\r\n');
+        let sp = txt.split('\r\n');
+        if(sp.length == 1){
+          sp = txt.split('\n');
+        }
         const dims = sp[0].split(' ');
         this.width = parseInt(dims[0]);
         this.height = parseInt(dims[1]);
@@ -141,7 +144,7 @@ export class CustomFont{
             this.coord_to_sheet_position.set(sp[i][j], {x, y});
           }
         }
-        console.log(txt);
+        //console.log(txt);
         console.log(`Font: loaded success, ${this.font_name}`);
         onLoaded();
         this.loaded = true;
@@ -157,6 +160,7 @@ export class CustomFont{
     shader.setWidth(this.width);
     shader.setHeight(this.height);
     const coord = this.coord_to_sheet_position.get(char);
+    //console.log(this.coord_to_sheet_position);
     if(coord != undefined){
       shader.setX(coord.x);
       shader.setY(coord.y);

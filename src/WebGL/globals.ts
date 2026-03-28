@@ -205,6 +205,7 @@ export class TextDrawer{
     this.font = font;
   }
   loadFont(onLoaded:()=>void=()=>{}){
+    
   }
 
   drawTextModelColour(mat: Matrix.TransformationMatrix3x3, text: string, size: Float, colour: Colour.ColourRGB){
