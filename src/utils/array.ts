@@ -40,9 +40,15 @@ export class SortedArray<T>{
     this.array = this.array.sort(cmp);
     this.cmp = cmp;
   }
+  size(): Int32{
+    return this.array.length;
+  }
   add(ele: T){
     const index = this.lowerBound(ele);
     this.array.splice(index, 0, ele);
+  }
+  remove(index: Int32){
+    //todo
   }
   getArray(): T[]{
     return this.array;

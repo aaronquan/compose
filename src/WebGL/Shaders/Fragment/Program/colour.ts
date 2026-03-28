@@ -1,5 +1,6 @@
 import Colour from './../Source/colour.frag?raw';
 import * as Shader from './../../shader';
+import * as WebGL from './../../../globals';
 
 export class ColourFragmentShader{
   static shader?: Shader.FragmentShader;
@@ -18,14 +19,10 @@ export function ColourShaderProgramMix<TBase extends Shader.CustomShaderPrograma
     private declare colour_uniform_location: WebGLUniformLocation | null;
     protected override setupFragment(){
       this.fragment_name = 'ColourShader';
-      if(ColourFragmentShader.shader){
-        this.program.addFragment(ColourFragmentShader.shader)
-      }else{
-        //load here?
-        throw new Error(`${this.fragment_name} not loaded`);
+      if(!ColourFragmentShader.shader){
+        ColourFragmentShader.load();
       }
-      //then
-      //this.program.addFragment(ColourFragmentShader.shader!);
+      this.program.addFragment(ColourFragmentShader.shader!);
     }
     protected override addFragmentUniformLocations(): void{
       this.colour_uniform_location = this.program.getUniformLocation('colour');
@@ -33,5 +30,10 @@ export function ColourShaderProgramMix<TBase extends Shader.CustomShaderPrograma
     setColour(a: GLfloat, b: GLfloat, c: GLfloat){
       this.program.setFloat3(this.colour_uniform_location!, a, b, c);
     }
+
+    setColourFromColourRGB(colour: WebGL.Colour.ColourRGB){
+      this.program.setFloat3(this.colour_uniform_location!, colour.red, colour.green, colour.blue);
+    }
+
   }
 }

@@ -6,10 +6,16 @@ export type ColourRGB = {
   blue: Float;
 }
 
+export type ColourRGBA = ColourRGB & {
+  alpha: Float;
+}
 
 export class ColourUtils{
   static fromRGB(red: Float, green: Float, blue: Float): ColourRGB{
     return {red, green, blue};
+  }
+  static toRGBA(colour: ColourRGB, alpha: Float): ColourRGBA{
+    return {...colour, alpha};
   }
   static black(): ColourRGB{
     return this.fromRGB(0, 0, 0);

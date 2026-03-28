@@ -1,6 +1,8 @@
 
 import * as WebGL from "./../WebGL/globals";
-import * as Array from "./../utils/array";
+import * as ArrayUtils from "./../utils/array";
+import * as Button from "./../interface/components/button";
+import { Note } from "../compose/note";
 
 type Int32 = number;
 type Float = number;
@@ -12,16 +14,30 @@ type Coord = {
   y: Int32
 }
 
+const NoteStateEnum = {
+  Default: 0,
+  Playing: 1,
+  Hovered: 2,
+  Selected: 3
+} as const;
+
+type NoteState = (typeof NoteStateEnum)[keyof typeof NoteStateEnum];
 
 type MIDINote = {
+  id: Int32,
   beat: Float,
-  length: Float
+  length: Float,
+  state: NoteState
 }
 
 function MIDINoteCmp(n1: MIDINote, n2: MIDINote): Int32{
   return n1.beat - n2.beat;
 }
 
+type NoteIdFloat = {
+  id: Int32,
+  beat_fl: Float
+}
 
 class MIDIGrid{
 
@@ -37,6 +53,7 @@ class MIDIGrid{
 
   active_coord: Coord | undefined;
   header_coord: Int32 | undefined;
+  mouse_beat_float: NoteIdFloat | undefined;
 
   scroll_height: Int32;
   scroll: Float;
@@ -44,7 +61,9 @@ class MIDIGrid{
 
   scroll_drag: boolean;
 
-  notes: Map<Int32, Array.SortedArray<MIDINote>>;
+  notes: Map<Int32, ArrayUtils.SortedArray<MIDINote>>;
+  hovered_note: MIDINote | undefined;
+  selected_notes: Map<Int32, Set<MIDINote>>;
   constructor(w: Int32, h: Int32){
     this.beat_width = 35;
     this.beat_gap = 0;
@@ -54,6 +73,8 @@ class MIDIGrid{
     this.height = h;
     this.active_coord = undefined;
     this.header_coord = undefined;
+
+    this.mouse_beat_float = undefined;
 
     this.max_display_height = 800;
     this.max_display_width = 500;
@@ -65,6 +86,9 @@ class MIDIGrid{
     this.scroll_drag = false;
 
     this.notes = new Map();
+    this.hovered_note = undefined;
+    this.selected_notes = new Map();
+
   }
   
   mouseDown(canvas_point: WebGL.Matrix.Point2D){
@@ -87,9 +111,9 @@ class MIDIGrid{
       }else if(this.active_coord != undefined){
         const y = this.active_coord.y;
         if(!this.notes.has(y)){
-          this.notes.set(y, new Array.SortedArray([], MIDINoteCmp));
+          this.notes.set(y, new ArrayUtils.SortedArray([], MIDINoteCmp));
         }
-        this.notes.get(y)!.add({beat: this.active_coord.x, length: 1});
+        this.notes.get(y)!.add({id: y, beat: this.active_coord.x, length: 1, state: NoteStateEnum.Default});
         // grida
       }
     }
@@ -98,6 +122,27 @@ class MIDIGrid{
     this.scroll_drag = false;
     //console.log(this.startDisplayX());
     //console.log(this.endDisplayX());
+  }
+  getHoveredNote(): MIDINote | undefined{
+    if(this.mouse_beat_float != undefined){
+      //console.log(this.mouse_beat_float);
+      const notes = this.notes.get(this.mouse_beat_float.id);
+      if(notes != undefined){
+        const sea = {id: this.mouse_beat_float.id, beat: this.mouse_beat_float.beat_fl, length: 0, state: NoteStateEnum.Default};
+        const index = notes.lowerBound(sea) - 1;
+        if(index >= 0 && index < notes.size()){
+          const note = notes.get(index)!;
+          if(note.beat <= this.mouse_beat_float.beat_fl && this.mouse_beat_float.beat_fl <= note.beat+note.length){
+            //console.log(note);
+            return note;
+          }
+        }
+      }
+    }
+    return undefined;
+    //if(this.active_coord){
+    //  this.notes.get(this.active_coord.y)?.search()
+    //}
   }
   insideScrollBar(grid_point: WebGL.Matrix.Point2D): boolean{
     const bottom = this.displayHeight();
@@ -124,6 +169,7 @@ class MIDIGrid{
   mouseOver(canvas_point: WebGL.Matrix.Point2D){
     const x_offset = this.getXOffset();
     const grid_point = new WebGL.Matrix.Point2D(canvas_point.x-this.top_left.x, canvas_point.y-this.top_left.y);
+    const fx = (grid_point.x-x_offset)/this.beat_width;
     const px = Math.floor((grid_point.x-x_offset)/this.beat_width);
     const py = Math.floor(grid_point.y/this.beat_height);
     if(this.scroll_drag){
@@ -132,23 +178,56 @@ class MIDIGrid{
     if(this.beat_header){
       if(this.insideGrid(canvas_point)){
         if(py == 0){
-          this.header_coord = px;
           this.active_coord = undefined;
+          this.header_coord = px;
+          this.mouse_beat_float = undefined;
         }else{
           this.active_coord = new WebGL.Matrix.Point2D(px, py-1);
           this.header_coord = undefined;
+          this.mouse_beat_float = {id: py-1, beat_fl: fx};
         }
       }else{
         this.active_coord = undefined;
         this.header_coord = undefined;
+        this.mouse_beat_float = undefined;
       }
     }else{
       if(this.insideGrid(canvas_point)){
         this.header_coord = undefined;
         this.active_coord = new WebGL.Matrix.Point2D(px, py);
+        this.mouse_beat_float = {id: py, beat_fl: fx};
       }
     }
+
+    //hovered note on grid
+    if(this.mouse_beat_float != undefined){
+      const active_note = this.getHoveredNote();
+      if(active_note != undefined){
+        active_note.state = NoteStateEnum.Hovered;
+        if(this.hovered_note != undefined && (this.hovered_note.beat !== active_note.beat || this.hovered_note.id !== active_note.id)){
+          this.hovered_note.state = NoteStateEnum.Default;
+        }
+        this.hovered_note = active_note;
+      }else{
+        if(this.hovered_note != undefined){
+          this.hovered_note.state = NoteStateEnum.Default;
+        }
+        this.hovered_note = undefined;
+      }
+    }else{
+      if(this.hovered_note != undefined){
+        this.hovered_note.state = NoteStateEnum.Default;
+      }
+      this.hovered_note = undefined;
+    }
   }
+  leftViewBeat(): Float{
+    return -this.getXOffset()/this.beat_width;
+  }
+  rightViewBeat(): Float{
+    return (-this.getXOffset()+this.max_display_width)/this.beat_width;
+  }
+
   startDisplayX(): Int32{
     const px = Math.floor(-this.getXOffset()/this.beat_width);
     return px;
@@ -194,6 +273,13 @@ type BarBeat = {
   beat: Int32;
 }
 
+const PlayStateEnum = {
+  Stopped: 0,
+  Playing: 1
+} as const;
+
+type PlayState = (typeof PlayStateEnum)[keyof typeof PlayStateEnum];
+
 export class MIDIEngine extends WebGL.App.BaseEngine{
   bars: Int32;
   beats_per_bar: Int32;
@@ -207,6 +293,22 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
   global_mouse: WebGL.Matrix.Point2D | undefined;
 
   grid: MIDIGrid;
+
+
+  last_time: Float;
+
+  bpm: Float;
+
+
+  buttons: Button.ButtonSet;
+
+  play_state: PlayState;
+  play_button: Button.BasicButton;
+  play_beat: Float;
+  play_note_index: Int32[];
+
+  current_playing_notes: Map<Int32, MIDINote>;
+
   constructor(width: Int32, height: Int32, canvas: HTMLCanvasElement){
     super();
     this.bars = 20;
@@ -220,6 +322,64 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     this.canvas_mouse = undefined;
     this.global_mouse = undefined;
     this.grid = new MIDIGrid(this.bars*this.beats_per_bar, this.max_id-this.min_id+1);
+
+    this.bpm = 60;
+
+    this.buttons = new Button.ButtonSet();
+
+    this.play_state = PlayStateEnum.Stopped;
+    this.play_button = new Button.BasicButton(10, 10, 60, 45);
+    this.play_button.text = "Play";
+    this.play_button.onPressed = () => {
+      console.log("pressed");
+      this.togglePlayState();
+      //this.play_button.text = "Stop";
+    }
+    this.buttons.addButton(this.play_button);
+    this.play_beat = 0;
+    this.play_note_index = Array.from({length: this.max_id-this.min_id+1}, () => 0);
+
+    this.last_time = 0;
+
+    this.current_playing_notes = new Map();
+  }
+  checkCurrentNotes(){
+    const notes = this.grid.notes;
+    const active_notes: Int32[] = [];
+    for(const [id, nts] of notes){
+      if(this.play_note_index[id] < nts.size()){
+        const note_arr = nts.getArray();
+        let curr_note = note_arr[this.play_note_index[id]];
+        while(curr_note.beat+curr_note.length < this.play_beat){
+          curr_note.state = NoteStateEnum.Default;
+          this.current_playing_notes.delete(curr_note.beat+this.min_id);
+          this.play_note_index[id]++;
+          if(this.play_note_index[id] >= nts.size()) break;
+          curr_note = note_arr[this.play_note_index[id]];
+        }
+        if(this.play_note_index[id] >= nts.size()) continue;
+        if(curr_note.beat <= this.play_beat && this.play_beat < curr_note.beat+curr_note.length){
+          console.log(`Playing id ${id+this.min_id}`);
+          curr_note.state = NoteStateEnum.Playing;
+          this.current_playing_notes.set(curr_note.beat+this.min_id, curr_note);
+        }
+      }
+    }
+    //console.log(active_notes);
+  }
+  togglePlayState(){
+    if(this.play_state == PlayStateEnum.Playing){
+      this.play_button.text = "Play";
+      this.play_state = PlayStateEnum.Stopped;
+      this.play_beat = 0;
+      this.play_note_index = Array.from({length: this.max_id-this.min_id+1}, () => 0);
+    }else if(this.play_state == PlayStateEnum.Stopped){
+      this.play_button.text = "Stop";
+      this.play_state = PlayStateEnum.Playing;
+    }
+  }
+  getTotalBeats(): Int32{
+    return this.bars*this.beats_per_bar;
   }
   getBarBeatFromId(id: Int32): BarBeat{
     const bar = Math.floor(id/this.beats_per_bar);
@@ -227,10 +387,22 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     return {bar, beat};
   }
   update(t: number): void {
+    const time_elapsed = t-this.last_time; // milliseconds
+    //console.log(time_elapsed);
+    if(this.play_state == PlayStateEnum.Playing){
+      const minutes_elapsed = time_elapsed/60000;
+      const beat_progress = minutes_elapsed*this.bpm;
+      this.play_beat += beat_progress;
+      this.checkCurrentNotes();
+    }
+
+    this.last_time = t;
     //throw new Error("Method not implemented.");
   }
   protected handleKeyDown(ev: KeyboardEvent): void {
     //throw new Error("Method not implemented.");
+    //this.checkCurrentNotes();
+    console.log(this.current_playing_notes);
   }
   protected handleKeyUp(ev: KeyboardEvent): void {
     //throw new Error("Method not implemented.");
@@ -244,16 +416,20 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     //console.log(canvas_point);
     this.canvas_mouse = canvas_point;
     this.grid.mouseOver(canvas_point);
+
+    this.buttons.updateMouse(canvas_point);
   }
   protected handleMouseDown(ev: MouseEvent): void {
     //console.log("click");
     if(this.canvas_mouse){
       this.grid.mouseDown(this.canvas_mouse);
+      this.buttons.mouseDown();
     }
   }
   protected handleMouseUp(ev: MouseEvent): void {
     if(this.canvas_mouse){
       this.grid.mouseUp(this.canvas_mouse);
+      this.buttons.mouseUp();
     }
   }
 }
@@ -298,7 +474,7 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     
     const beat_width = engine.grid.beat_width;
     const beat_gap = 0;
-    const line_thickness = 2;
+    const line_thickness = 1;
     const half_line = line_thickness*0.5;
     const beat_height = engine.grid.beat_height;
 
@@ -384,21 +560,61 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
         this.colour_shader.use();
 
         this.colour_shader.setMvp(vp.multiplyCopy(model));
+
+        if(note.state === NoteStateEnum.Playing){
+          this.colour_shader.setColour(1, 0, 0);
+        }else if(note.state === NoteStateEnum.Default){
+          this.colour_shader.setColour(0, 1, 0.5);
+        }else if(note.state === NoteStateEnum.Hovered){
+          this.colour_shader.setColour(1, 0, 1);
+        }
+
         WebGL.Shapes.Quad.drawRelative();
       }
       //console.log(note_arr.getArray());
     }
 
+    const double_line = line_thickness*2;
+
     gl.disable(gl.SCISSOR_TEST);
-
+    this.colour_shader.use();
+    this.colour_shader.setColour(0.6, 0.6, 0.6);
     //draw lines  
-    for(let id = start_beat_id; id <= end_beat_id; id++){
-      //vertical
-      const model = WebGL.WebGL.rectangleModel(x+x_offset, y, beat_width, grid_height);
-    }
-    //grid lines
 
-    //bar lines
+    //vertical
+    for(let id = start_beat_id+1; id < end_beat_id; id++){
+      const ly = tl.y;
+      const lx = tl.x+x_offset+beat_width*id;
+      if(id % engine.beats_per_bar == 0){
+        const model = WebGL.WebGL.rectangleModel(lx-line_thickness, ly, double_line, grid_height);
+        this.colour_shader.setMvp(vp.multiplyCopy(model));
+        this.colour_shader.setColour(0.8, 0.8, 0.8);
+      }else{
+        const model = WebGL.WebGL.rectangleModel(lx-half_line, ly, line_thickness, grid_height);
+        this.colour_shader.setMvp(vp.multiplyCopy(model));
+        this.colour_shader.setColour(0.6, 0.6, 0.6);
+      }
+      WebGL.Shapes.Quad.drawRelative();
+    }
+    //horizontal
+    this.colour_shader.setColour(0.6, 0.6, 0.6);
+    for(let id = 0; id <= engine.max_id-engine.min_id; id++){
+      const ly = engine.grid.getYGlobalOffset()+id*engine.grid.beat_height;
+      const lx = tl.x;
+      const model = WebGL.WebGL.rectangleModel(lx, ly, grid_width, line_thickness);
+      this.colour_shader.setMvp(vp.multiplyCopy(model));
+      WebGL.Shapes.Quad.drawRelative();
+    }
+
+    //play line
+    if(engine.play_beat >= engine.grid.leftViewBeat() && engine.play_beat <= engine.grid.rightViewBeat()){
+      this.colour_shader.setColour(0.1, 1, 0.1);
+      const ly = tl.y;
+      const lx = tl.x+x_offset+beat_width*engine.play_beat;
+      const model = WebGL.WebGL.rectangleModel(lx-line_thickness, ly, double_line, grid_height);
+      this.colour_shader.setMvp(vp.multiplyCopy(model));
+      WebGL.Shapes.Quad.drawRelative();
+    }
 
     const right_grid = tl.x+grid_width;
     const bottom_grid = tl.y+grid_height;
@@ -406,21 +622,20 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     this.colour_shader.use();
     this.colour_shader.setColour(1, 1, 1);
     //border
-    const double_line = line_thickness*2;
     //top
-    const top_line_model = WebGL.WebGL.rectangleModel(tl.x, tl.y-line_thickness, grid_width, double_line);
+    const top_line_model = WebGL.WebGL.rectangleModel(tl.x, tl.y-double_line, grid_width, double_line);
     this.colour_shader.setMvp(vp.multiplyCopy(top_line_model));
     WebGL.Shapes.Quad.draw();
     //left
-    const left_line_model = WebGL.WebGL.rectangleModel(tl.x-line_thickness, tl.y, double_line, grid_height);
+    const left_line_model = WebGL.WebGL.rectangleModel(tl.x-double_line, tl.y, double_line, grid_height);
     this.colour_shader.setMvp(vp.multiplyCopy(left_line_model));
     WebGL.Shapes.Quad.draw();
     //bot
-    const bot_line_model = WebGL.WebGL.rectangleModel(tl.x, tl.y+grid_height-line_thickness, grid_width, double_line);
+    const bot_line_model = WebGL.WebGL.rectangleModel(tl.x, tl.y+grid_height, grid_width, double_line);
     this.colour_shader.setMvp(vp.multiplyCopy(bot_line_model));
     WebGL.Shapes.Quad.draw();
     //right
-    const right_line_model = WebGL.WebGL.rectangleModel(tl.x+grid_width-line_thickness, tl.y, double_line, grid_height);
+    const right_line_model = WebGL.WebGL.rectangleModel(tl.x+grid_width, tl.y, double_line, grid_height);
     this.colour_shader.setMvp(vp.multiplyCopy(right_line_model));
     WebGL.Shapes.Quad.draw();
 
@@ -434,6 +649,11 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     this.colour_shader.setColour(0.2, 0.2, 0.2);
     this.colour_shader.setMvp(vp.multiplyCopy(bar_model));
     WebGL.Shapes.Quad.draw();
+
+    //buttons
+    engine.buttons.draw(vp, this.colour_shader, this.text_drawer);
+
+    this.text_drawer.drawText(vp, 400, 20, engine.grid.leftViewBeat().toString(), 15)
 
     /*
     //vertical

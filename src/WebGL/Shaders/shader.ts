@@ -113,6 +113,9 @@ export class ShaderProgram{
   setInt(uni_location: WebGLUniformLocation, value: GLint){
     WebGL.gl!.uniform1i(uni_location, value);
   }
+  setMat2(uni_location: WebGLUniformLocation, matrix: Float32Array){
+    WebGL.gl!.uniformMatrix2fv(uni_location, false, matrix);
+  }
   setMat3(uni_location: WebGLUniformLocation, matrix: Float32Array){
     WebGL.gl!.uniformMatrix3fv(uni_location, false, matrix);
   }
