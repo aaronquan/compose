@@ -353,31 +353,34 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     const notes = this.grid.notes;
     const active_notes: Int32[] = [];
     for(const [id, nts] of notes){
+      const note_tone_id = id+this.min_id;
+      const note_tone = Note.RealNoteTone.getNoteToneFromId(note_tone_id);
       if(this.play_note_index[id] < nts.size()){
         const note_arr = nts.getArray();
         let curr_note = note_arr[this.play_note_index[id]];
         while(curr_note.beat+curr_note.length < this.play_beat){
           // stop current note
           curr_note.state = NoteStateEnum.Default;
-          this.current_playing_notes.delete(curr_note.beat+this.min_id);
+          this.current_playing_notes.delete(note_tone_id);
 
-          this.sound_generator.stop(Note.RealNoteTone.getNoteToneFromId(curr_note.id+this.min_id));
-          console.log("stopping: "+ (curr_note.id+this.min_id).toString());
+          this.sound_generator.stop(note_tone);
+          console.log("stopping: "+ (note_tone_id).toString());
           this.play_note_index[id]++;
           if(this.play_note_index[id] >= nts.size()) break;
           curr_note = note_arr[this.play_note_index[id]];
         }
         if(this.play_note_index[id] >= nts.size()) continue;
-        if(curr_note.beat <= this.play_beat && this.play_beat < curr_note.beat+curr_note.length){
-          //play new note
+        if(curr_note.state !== NoteStateEnum.Playing && curr_note.beat <= this.play_beat && this.play_beat < curr_note.beat+curr_note.length){
+          //play new note (currently plays repeats for same note)
 
-          console.log(`Playing id ${id+this.min_id}`);
+          console.log(`Playing id ${note_tone_id}`);
           curr_note.state = NoteStateEnum.Playing;
-          this.current_playing_notes.set(id+this.min_id, curr_note);
+          this.current_playing_notes.set(note_tone_id, curr_note);
 
-          if(!this.sound_generator.active_oscillators.has(id+this.min_id)){
-            console.log("adding sound "+(id+this.min_id).toString());
-            this.sound_generator.play(Note.RealNoteTone.getNoteToneFromId(id+this.min_id));
+          if(!this.sound_generator.active_oscillators.has(note_tone_id)){
+            console.log("adding sound "+(note_tone_id).toString());
+            this.sound_generator.play(note_tone);
+            
           }
         }
       }

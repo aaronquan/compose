@@ -93,7 +93,7 @@ export class Oscillator{
     this.is_playing = true;
   }
   stop(){
-    this.gain.gain.setTargetAtTime(0, this.audio_context.currentTime, 0.1);
+    this.gain.gain.setTargetAtTime(0, this.audio_context.currentTime+0.02, 0.1);
     this.is_playing = false;
   }
 }
