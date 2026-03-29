@@ -89,7 +89,7 @@ export class Oscillator{
   play(){
     this.setup();
     this.gain.gain.value = 0;
-    this.gain.gain.setTargetAtTime(0.2, this.audio_context.currentTime+0.01, 0.1);
+    this.gain.gain.setTargetAtTime(0.05, this.audio_context.currentTime+0.01, 0.1);
     this.is_playing = true;
   }
   stop(){

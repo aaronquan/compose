@@ -373,7 +373,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
 
           console.log(`Playing id ${id+this.min_id}`);
           curr_note.state = NoteStateEnum.Playing;
-          this.current_playing_notes.set(curr_note.beat+this.min_id, curr_note);
+          this.current_playing_notes.set(id+this.min_id, curr_note);
 
           if(!this.sound_generator.active_oscillators.has(id+this.min_id)){
             console.log("adding sound "+(id+this.min_id).toString());
@@ -391,6 +391,8 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       this.play_beat = 0;
       this.play_note_index = Array.from({length: this.max_id-this.min_id+1}, () => 0);
       for(let [curr, note] of this.current_playing_notes){
+        console.log(`cancelling ${curr}`);
+        this.sound_generator.stop(Note.RealNoteTone.getNoteToneFromId(curr));
         note.state = NoteStateEnum.Default;
       }
       this.current_playing_notes.clear();
