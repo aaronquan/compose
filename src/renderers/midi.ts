@@ -160,12 +160,16 @@ class MIDIGrid{
     //  this.notes.get(this.active_coord.y)?.search()
     //}
   }
+  closestNote(beat_fl_value: Float): MIDINote | undefined{
+    
+  }
   noteEdge(edge_amount: Float=0.1): MIDINote | undefined{
     if(this.mouse_beat_float != undefined){
       const notes = this.notes.get(this.mouse_beat_float.id);
       if(notes != undefined){
         const sea = {id: this.mouse_beat_float.id, beat: this.mouse_beat_float.beat_fl, length: 0, state: NoteStateEnum.Default};
         const index = notes.lowerBound(sea) - 1;
+        
         if(index >= 0 && index < notes.size()){
           const note = notes.get(index)!;
           const lower_edge_range = {low: note.beat-edge_amount, high: note.beat+edge_amount};
@@ -271,9 +275,7 @@ class MIDIGrid{
 
 
     //check note edges
-    if(this.hovered_note){
-
-    }
+    this.noteEdge();
   }
   leftViewBeat(): Float{
     return -this.getXOffset()/this.beat_width;
