@@ -2,6 +2,7 @@
 import * as WebGL from "./../WebGL/globals";
 import * as ArrayUtils from "./../utils/array";
 import * as Button from "./../interface/components/button";
+import * as Slider from "./../interface/components/slider";
 //import { Note } from "../compose/note";
 import * as Note from "../compose/note";
 
@@ -66,6 +67,8 @@ class MIDIGrid{
 
   notes: Map<Int32, ArrayUtils.SortedArray<MIDINote>>;
   hovered_note: MIDINote | undefined;
+  dragged_note: MIDINote | undefined;
+  drag_beat_offset: Float;
   selected_notes: Map<Int32, Set<MIDINote>>;
   constructor(w: Int32, h: Int32){
     this.beat_width = 35;
@@ -90,6 +93,8 @@ class MIDIGrid{
 
     this.notes = new Map();
     this.hovered_note = undefined;
+    this.dragged_note = undefined;
+    this.drag_beat_offset = 0;
     this.selected_notes = new Map();
 
   }
@@ -103,26 +108,34 @@ class MIDIGrid{
     //test mouse over scroll bar
     //console.log(grid_point);
     //console.log(sbar_x);
-    if(this.insideGrid(canvas_point)){
-      if(this.insideScrollBar(grid_point)){
-        if(grid_point.x > sbar_x && grid_point.x < sbar_x + sbar_width){
-          console.log("inside scroll bar");
-          this.scroll_drag = true;
-        }else{
-          this.setScroll(grid_point);
+    if(this.mouse_beat_float != undefined && this.hovered_note != undefined){
+      console.log(this.hovered_note);
+      this.dragged_note = this.hovered_note;
+      this.drag_beat_offset = this.mouse_beat_float.beat_fl - this.dragged_note.beat;
+    }else{
+      if(this.insideGrid(canvas_point)){
+        if(this.insideScrollBar(grid_point)){
+          if(grid_point.x > sbar_x && grid_point.x < sbar_x + sbar_width){
+            console.log("inside scroll bar");
+            this.scroll_drag = true;
+          }else{
+            this.setScroll(grid_point);
+          }
+        }else if(this.active_coord != undefined){
+          const y = this.active_coord.y;
+          if(!this.notes.has(y)){
+            this.notes.set(y, new ArrayUtils.SortedArray([], MIDINoteCmp));
+          }
+          this.notes.get(y)!.add({id: y, beat: this.active_coord.x, length: 1, state: NoteStateEnum.Default});
+          
         }
-      }else if(this.active_coord != undefined){
-        const y = this.active_coord.y;
-        if(!this.notes.has(y)){
-          this.notes.set(y, new ArrayUtils.SortedArray([], MIDINoteCmp));
-        }
-        this.notes.get(y)!.add({id: y, beat: this.active_coord.x, length: 1, state: NoteStateEnum.Default});
-        // grida
       }
     }
+
   }
   mouseUp(canvas_point: WebGL.Matrix.Point2D){
     this.scroll_drag = false;
+    this.dragged_note = undefined;
     //console.log(this.startDisplayX());
     //console.log(this.endDisplayX());
   }
@@ -146,6 +159,30 @@ class MIDIGrid{
     //if(this.active_coord){
     //  this.notes.get(this.active_coord.y)?.search()
     //}
+  }
+  noteEdge(edge_amount: Float=0.1): MIDINote | undefined{
+    if(this.mouse_beat_float != undefined){
+      const notes = this.notes.get(this.mouse_beat_float.id);
+      if(notes != undefined){
+        const sea = {id: this.mouse_beat_float.id, beat: this.mouse_beat_float.beat_fl, length: 0, state: NoteStateEnum.Default};
+        const index = notes.lowerBound(sea) - 1;
+        if(index >= 0 && index < notes.size()){
+          const note = notes.get(index)!;
+          const lower_edge_range = {low: note.beat-edge_amount, high: note.beat+edge_amount};
+          const inside_lower_edge = lower_edge_range.low <= this.mouse_beat_float.beat_fl && this.mouse_beat_float.beat_fl <= lower_edge_range.high;
+          if(inside_lower_edge){
+            console.log("lower edge")
+          }
+          //check if inside lower
+          const upper_edge_range = {low: note.beat+note.length-edge_amount, high: note.beat+note.length+edge_amount};
+          const inside_upper_edge = upper_edge_range.low <= this.mouse_beat_float.beat_fl && this.mouse_beat_float.beat_fl <= upper_edge_range.high;
+          if(inside_upper_edge){
+            console.log("upper edge")
+          }
+        }
+      }
+    }
+    return undefined;
   }
   insideScrollBar(grid_point: WebGL.Matrix.Point2D): boolean{
     const bottom = this.displayHeight();
@@ -222,6 +259,20 @@ class MIDIGrid{
         this.hovered_note.state = NoteStateEnum.Default;
       }
       this.hovered_note = undefined;
+    }
+
+    //dragging note
+    if(this.mouse_beat_float != undefined && this.dragged_note != undefined){
+      console.log(this.mouse_beat_float);
+      this.dragged_note.beat = this.mouse_beat_float.beat_fl-this.drag_beat_offset;
+      //this.dragged_note.
+    }
+
+
+
+    //check note edges
+    if(this.hovered_note){
+
     }
   }
   leftViewBeat(): Float{
@@ -304,6 +355,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
 
 
   buttons: Button.ButtonSet;
+  toggle_buttons: Button.ToggleButtonSet;
 
   play_state: PlayState;
   play_button: Button.BasicButton;
@@ -313,13 +365,21 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
   current_playing_notes: Map<Int32, MIDINote>;
 
   sound_generator: Audio.OscillatorCollection;
+  sound_generator_same_volume: Audio.OscillatorCollectionSameGain;
+
+  slider_test: Slider.HorizontalSlider;
+
+  cs_test: Audio.ConstantSourceGainTest;
+
+  ticker: Audio.TickOscillator;
+  tick_on: boolean;
 
   constructor(width: Int32, height: Int32, canvas: HTMLCanvasElement, audio_context: AudioContext){
     super();
     this.bars = 20;
     this.beats_per_bar = 4;
-    this.min_id = 5;
-    this.max_id = 25;
+    this.min_id = 35;
+    this.max_id = 58;
     this.width = width;
     this.height = height;
     this.vp = WebGL.Matrix.TransformationMatrix3x3.orthographic(0, width, height, 0);
@@ -341,6 +401,15 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       //this.play_button.text = "Stop";
     }
     this.buttons.addButton(this.play_button);
+
+    const test_button = new Button.BasicButton(80, 4, 60, 30);
+    test_button.text = "Test";
+    test_button.onPressed = () => {
+      console.log("testing_sound");
+      Audio.OscillatorCollection.testSound(audio_context);
+    }
+    this.buttons.addButton(test_button);
+
     this.play_beat = 0;
     this.play_note_index = Array.from({length: this.max_id-this.min_id+1}, () => 0);
 
@@ -348,6 +417,60 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
 
     this.current_playing_notes = new Map();
     this.sound_generator = new Audio.OscillatorCollection(audio_context);
+
+    this.slider_test = new Slider.HorizontalSlider();
+    this.slider_test.value = 0.5;
+    this.slider_test.onChange = (v) => {
+      this.cs_test.setSource(v);
+      this.sound_generator_same_volume.setVolume(v);
+    }
+
+    const audio_test_button = new Button.BasicButton(300, 4, 60, 30);
+    audio_test_button.text = "Play T";
+    audio_test_button.onPressed = () => {
+      console.log("1");
+      if(audio_test_button.text == "Play T"){
+        audio_test_button.text = "Stop";
+        this.cs_test.play();
+      }else{
+        audio_test_button.text = "Play T";
+        this.cs_test.stop();
+      }
+    }
+    this.buttons.addButton(audio_test_button);
+
+    this.cs_test = new Audio.ConstantSourceGainTest(audio_context);
+  
+    this.sound_generator_same_volume = new Audio.OscillatorCollectionSameGain(audio_context);
+    this.sound_generator_same_volume.setVolume(this.slider_test.value);
+
+    this.toggle_buttons = new Button.ToggleButtonSet();
+
+    const tog1 = new Button.ToggleButton(450, 10, 90, 12);
+    tog1.on_text = "Tick On";
+    tog1.off_text = "Tick Off";
+    tog1.state = Button.ToggleButtonStateEnum.On;
+    tog1.onToggleOn = () => {
+      this.tick_on = true;
+    };
+    tog1.onToggleOff = () => {
+      this.tick_on = false;
+    };
+
+    this.toggle_buttons.addButton(tog1);
+
+    this.ticker = new Audio.TickOscillator(audio_context);
+    this.tick_on = tog1.isOn();
+
+  }
+  playNote(note_tone: Note.RealNoteTone){
+    console.log("playing note "+note_tone.toString());
+    //this.sound_generator.play(note_tone); // old sound
+    this.sound_generator_same_volume.play(note_tone.getFrequency());
+  }
+  stopNote(note_tone: Note.RealNoteTone){
+    console.log("stopping: "+ note_tone.toString());
+    this.sound_generator_same_volume.stop(note_tone.getFrequency());
   }
   checkCurrentNotes(){
     const notes = this.grid.notes;
@@ -363,8 +486,8 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
           curr_note.state = NoteStateEnum.Default;
           this.current_playing_notes.delete(note_tone_id);
 
-          this.sound_generator.stop(note_tone);
-          console.log("stopping: "+ (note_tone_id).toString());
+          this.stopNote(note_tone);
+          
           this.play_note_index[id]++;
           if(this.play_note_index[id] >= nts.size()) break;
           curr_note = note_arr[this.play_note_index[id]];
@@ -378,9 +501,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
           this.current_playing_notes.set(note_tone_id, curr_note);
 
           if(!this.sound_generator.active_oscillators.has(note_tone_id)){
-            console.log("adding sound "+(note_tone_id).toString());
-            this.sound_generator.play(note_tone);
-            
+            this.playNote(note_tone);
           }
         }
       }
@@ -394,8 +515,9 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       this.play_beat = 0;
       this.play_note_index = Array.from({length: this.max_id-this.min_id+1}, () => 0);
       for(let [curr, note] of this.current_playing_notes){
-        console.log(`cancelling ${curr}`);
-        this.sound_generator.stop(Note.RealNoteTone.getNoteToneFromId(curr));
+        //console.log(`cancelling ${curr}`);
+        //this.sound_generator.stop(Note.RealNoteTone.getNoteToneFromId(curr));
+        this.stopNote(Note.RealNoteTone.getNoteToneFromId(curr))
         note.state = NoteStateEnum.Default;
       }
       this.current_playing_notes.clear();
@@ -422,11 +544,17 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     if(this.play_state == PlayStateEnum.Playing){
       const minutes_elapsed = time_elapsed/60000;
       const beat_progress = minutes_elapsed*this.bpm;
+      const next_beat = Math.ceil(this.play_beat);
+      const passed_beat = this.play_beat+beat_progress >= next_beat;
+      if(passed_beat && this.tick_on){
+        //play tick if tick on
+        this.ticker.tick();
+      }
       this.play_beat += beat_progress;
       this.checkCurrentNotes();
 
 
-      // add notes to play in 
+      // add notes to play in (done in this.checkCurrentNotes())
     }
 
 
@@ -453,18 +581,27 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     this.grid.mouseOver(canvas_point);
 
     this.buttons.updateMouse(canvas_point);
+    this.slider_test.updateMouse(canvas_point);
+
+    this.toggle_buttons.updateMouse(canvas_point);
   }
   protected handleMouseDown(ev: MouseEvent): void {
     //console.log("click");
     if(this.canvas_mouse){
       this.grid.mouseDown(this.canvas_mouse);
       this.buttons.mouseDown();
+      this.slider_test.mouseDown(this.canvas_mouse);
+
+      this.toggle_buttons.mouseDown();
     }
   }
   protected handleMouseUp(ev: MouseEvent): void {
     if(this.canvas_mouse){
       this.grid.mouseUp(this.canvas_mouse);
       this.buttons.mouseUp();
+      this.slider_test.mouseUp(this.canvas_mouse);
+
+      this.toggle_buttons.mouseUp();
     }
   }
 }
@@ -689,6 +826,12 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     engine.buttons.draw(vp, this.colour_shader, this.text_drawer);
 
     this.text_drawer.drawText(vp, 400, 20, engine.grid.leftViewBeat().toString(), 15)
+
+    engine.slider_test.draw(vp, this.colour_shader);
+
+    this.text_drawer.drawText(vp, 320, 15, `v ${engine.slider_test.value.toString()}`, 15);
+
+    engine.toggle_buttons.draw(vp, this.colour_shader, this.text_drawer);
 
     /*
     //vertical
