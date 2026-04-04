@@ -47,13 +47,13 @@ export class BasicButton{
   onPressed: VoidFunction;
   onPressedOut: VoidFunction;
 
-  constructor(x: Int32, y: Int32, w: Int32, h: Int32){
+  constructor(x: Int32, y: Int32, w: Int32, h: Int32, ts: Int32=h){
     this.text = "";
     this.x = x;
     this.y = y;
     this.width = w;
     this.height = h;
-    this.text_size = 13;
+    this.text_size = ts;
     this.state = ButtonStateEnum.Off;
     this.colours = new Map();
     this.colours.set(ButtonStateEnum.Off, WebGL.Colour.ColourUtils.blue());
@@ -185,7 +185,7 @@ export class ToggleButton implements Button{
 
   text_colour: WebGL.Colour.ColourRGB;
 
-  constructor(x: Int32, y: Int32, w: Int32, h: Int32){
+  constructor(x: Int32, y: Int32, w: Int32, h: Int32, ts: Int32=h){
     this.off_text = "";
     this.on_text = "";
     this.text = "";
@@ -193,7 +193,7 @@ export class ToggleButton implements Button{
     this.y = y;
     this.width = w;
     this.height = h;
-    this.text_size = 15;
+    this.text_size = ts;
     this.state = ToggleButtonStateEnum.Off;
 
     this.colours = new Map();

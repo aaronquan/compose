@@ -43,7 +43,19 @@ type NoteIdFloat = {
   beat_fl: Float
 }
 
-class MIDIGrid{
+type MIDINoteEdge = {
+  is_low_edge: boolean;
+  note: MIDINote;
+}
+
+const GridEditStateEnum = {
+  Default: 0,
+  Adding: 1
+} as const;
+
+type GridEditState = (typeof GridEditStateEnum)[keyof typeof GridEditStateEnum];
+
+export class MIDIGrid{
 
   beat_width: Int32;
   beat_gap: Int32;
@@ -68,10 +80,17 @@ class MIDIGrid{
   notes: Map<Int32, ArrayUtils.SortedArray<MIDINote>>;
   hovered_note: MIDINote | undefined;
   dragged_note: MIDINote | undefined;
+  dragged_note_index: Int32;
   drag_beat_offset: Float;
+
+  dragged_note_edge: MIDINoteEdge | undefined;
+
   selected_notes: Map<Int32, Set<MIDINote>>;
+
+  edit_state: GridEditState;
+
   constructor(w: Int32, h: Int32){
-    this.beat_width = 35;
+    this.beat_width = 100;
     this.beat_gap = 0;
     this.beat_height = 30;
     this.top_left = new WebGL.Matrix.Point2D(50, 50);
@@ -94,9 +113,14 @@ class MIDIGrid{
     this.notes = new Map();
     this.hovered_note = undefined;
     this.dragged_note = undefined;
+    this.dragged_note_index = 0;
     this.drag_beat_offset = 0;
+
+    this.dragged_note_edge = undefined;
+
     this.selected_notes = new Map();
 
+    this.edit_state = GridEditStateEnum.Default;
   }
   
   mouseDown(canvas_point: WebGL.Matrix.Point2D){
@@ -106,40 +130,75 @@ class MIDIGrid{
     const sbar_leftover = this.max_display_width - sbar_width;
     const sbar_x = this.scroll*sbar_leftover;
     //test mouse over scroll bar
-    //console.log(grid_point);
-    //console.log(sbar_x);
-    if(this.mouse_beat_float != undefined && this.hovered_note != undefined){
-      console.log(this.hovered_note);
-      this.dragged_note = this.hovered_note;
-      this.drag_beat_offset = this.mouse_beat_float.beat_fl - this.dragged_note.beat;
-    }else{
-      if(this.insideGrid(canvas_point)){
-        if(this.insideScrollBar(grid_point)){
-          if(grid_point.x > sbar_x && grid_point.x < sbar_x + sbar_width){
-            console.log("inside scroll bar");
-            this.scroll_drag = true;
-          }else{
-            this.setScroll(grid_point);
-          }
-        }else if(this.active_coord != undefined){
-          const y = this.active_coord.y;
-          if(!this.notes.has(y)){
-            this.notes.set(y, new ArrayUtils.SortedArray([], MIDINoteCmp));
-          }
-          this.notes.get(y)!.add({id: y, beat: this.active_coord.x, length: 1, state: NoteStateEnum.Default});
-          
-        }
+    //note editing (edges, beat reposition)
+    if(this.mouse_beat_float != undefined){
+      const edge = this.noteEdge();
+      this.dragged_note_edge = edge;
+      if(edge != undefined){
+        this.drag_beat_offset = edge.is_low_edge ? 
+          this.mouse_beat_float.beat_fl - edge.note.beat :
+        edge.note.beat+edge.note.length - this.mouse_beat_float.beat_fl;
+        this.dragged_note_index = this.closestNoteIndex(this.mouse_beat_float)!;
+        //console.log(`edge ${this.dragged_note_index}`);
+      }
+      else if(this.hovered_note != undefined){
+        this.dragged_note = this.hovered_note;
+        this.drag_beat_offset = this.mouse_beat_float.beat_fl - this.dragged_note.beat;
+        this.dragged_note_index = this.getHoveredNoteIndex()!;
+        //console.log(this.dragged_note_index);
       }
     }
 
+    //scroll / adding notes
+    if(this.insideGrid(canvas_point)){
+      if(this.insideScrollBar(grid_point)){
+        if(grid_point.x > sbar_x && grid_point.x < sbar_x + sbar_width){
+          this.scroll_drag = true;
+        }else{
+          this.setScroll(grid_point);
+        }
+      }else if(this.edit_state == GridEditStateEnum.Adding && this.active_coord != undefined){
+        this.addNote(this.active_coord.y, this.active_coord.x);
+      }
+    }
+  }
+  addNote(note_id: Int32, beat: Float, length: Float=1){
+    if(!this.notes.has(note_id)){
+      this.notes.set(note_id, new ArrayUtils.SortedArray([], MIDINoteCmp));
+    }
+    this.notes.get(note_id)!.add({id: note_id, beat, length, state: NoteStateEnum.Default});
   }
   mouseUp(canvas_point: WebGL.Matrix.Point2D){
     this.scroll_drag = false;
     this.dragged_note = undefined;
-    //console.log(this.startDisplayX());
-    //console.log(this.endDisplayX());
+    this.dragged_note_edge = undefined;
   }
   getHoveredNote(): MIDINote | undefined{
+    
+    if(this.mouse_beat_float != undefined){
+      //console.log(this.mouse_beat_float);
+      const notes = this.notes.get(this.mouse_beat_float.id);
+      if(notes != undefined){
+        const index = this.getHoveredNoteIndex();
+        if(index != undefined){
+          return notes.get(index);
+        }
+        return undefined;
+        /*
+        const sea = {id: this.mouse_beat_float.id, beat: this.mouse_beat_float.beat_fl, length: 0, state: NoteStateEnum.Default};
+        const index = notes.lowerBound(sea) - 1;
+        if(index >= 0 && index < notes.size()){
+          const note = notes.get(index)!;
+          if(note.beat <= this.mouse_beat_float.beat_fl && this.mouse_beat_float.beat_fl <= note.beat+note.length){
+            //console.log(note);
+            return note;
+          }
+        }*/
+      }
+    }
+    return undefined;
+  }
+  getHoveredNoteIndex(): Int32 | undefined{
     if(this.mouse_beat_float != undefined){
       //console.log(this.mouse_beat_float);
       const notes = this.notes.get(this.mouse_beat_float.id);
@@ -149,40 +208,95 @@ class MIDIGrid{
         if(index >= 0 && index < notes.size()){
           const note = notes.get(index)!;
           if(note.beat <= this.mouse_beat_float.beat_fl && this.mouse_beat_float.beat_fl <= note.beat+note.length){
-            //console.log(note);
-            return note;
+            return index;
           }
         }
       }
     }
     return undefined;
-    //if(this.active_coord){
-    //  this.notes.get(this.active_coord.y)?.search()
-    //}
   }
-  closestNote(beat_fl_value: Float): MIDINote | undefined{
-    
-  }
-  noteEdge(edge_amount: Float=0.1): MIDINote | undefined{
-    if(this.mouse_beat_float != undefined){
-      const notes = this.notes.get(this.mouse_beat_float.id);
+  closestNote(note_id_fl: NoteIdFloat): MIDINote | undefined{
+    const notes = this.notes.get(note_id_fl.id);
+    if(notes != undefined){
+      const index = this.closestNoteIndex(note_id_fl);
+      if(index != undefined){
+        return notes.get(index);
+      }
+      return undefined;
+    }
+    return undefined;
+    /*
+    if(note_id_fl != undefined){
+      const notes = this.notes.get(note_id_fl.id);
       if(notes != undefined){
-        const sea = {id: this.mouse_beat_float.id, beat: this.mouse_beat_float.beat_fl, length: 0, state: NoteStateEnum.Default};
+        const sea = {id: note_id_fl.id, beat: note_id_fl.beat_fl, length: 0, state: NoteStateEnum.Default};
         const index = notes.lowerBound(sea) - 1;
-        
         if(index >= 0 && index < notes.size()){
           const note = notes.get(index)!;
-          const lower_edge_range = {low: note.beat-edge_amount, high: note.beat+edge_amount};
-          const inside_lower_edge = lower_edge_range.low <= this.mouse_beat_float.beat_fl && this.mouse_beat_float.beat_fl <= lower_edge_range.high;
-          if(inside_lower_edge){
-            console.log("lower edge")
+          if(note.beat <= note_id_fl.beat_fl && note_id_fl.beat_fl <= note.beat+note.length){
+            return note;
           }
-          //check if inside lower
-          const upper_edge_range = {low: note.beat+note.length-edge_amount, high: note.beat+note.length+edge_amount};
-          const inside_upper_edge = upper_edge_range.low <= this.mouse_beat_float.beat_fl && this.mouse_beat_float.beat_fl <= upper_edge_range.high;
-          if(inside_upper_edge){
-            console.log("upper edge")
+
+          //after check next note with current
+          const next_note = notes.get(index+1);
+          if(next_note != undefined){
+            if(note_id_fl.beat_fl - (note.beat+note.length) <= next_note.beat - note_id_fl.beat_fl){
+              return note;
+            }else{
+              return next_note;
+            }
+          }else{
+            return note;
           }
+        }else if(notes.size() >= 1){
+          //before all notes
+          return notes.get(0);
+        }
+      }
+    }
+    return undefined;*/
+  }
+  closestNoteIndex(note_id_fl: NoteIdFloat): Int32 | undefined{
+    if(note_id_fl != undefined){
+      const notes = this.notes.get(note_id_fl.id);
+      if(notes != undefined){
+        const sea = {id: note_id_fl.id, beat: note_id_fl.beat_fl, length: 0, state: NoteStateEnum.Default};
+        const index = notes.lowerBound(sea) - 1;
+        if(index >= 0 && index < notes.size()){
+          const note = notes.get(index)!;
+          if(note.beat <= note_id_fl.beat_fl && note_id_fl.beat_fl <= note.beat+note.length){
+            return index;
+          }
+
+          //after check next note with current
+          const next_note = notes.get(index+1);
+          if(next_note != undefined){
+            if(note_id_fl.beat_fl - (note.beat+note.length) <= next_note.beat - note_id_fl.beat_fl){
+              return index;
+            }else{
+              return index+1;
+            }
+          }else{
+            return index;
+          }
+        }else if(notes.size() >= 1){
+          //before all notes
+          return 0;
+        }
+      }
+    }
+    return undefined;
+  }
+  noteEdge(edge_amount: Float=0.1): MIDINoteEdge | undefined{
+    if(this.mouse_beat_float != undefined){
+      const closest = this.closestNote(this.mouse_beat_float);
+      if(closest != undefined){
+        if(closest.beat-edge_amount <= this.mouse_beat_float.beat_fl && this.mouse_beat_float.beat_fl <= closest.beat+edge_amount){
+          return {is_low_edge: true, note: closest};
+        }
+        if(closest.beat+closest.length-edge_amount <= this.mouse_beat_float.beat_fl 
+          && this.mouse_beat_float.beat_fl <= closest.beat+closest.length+edge_amount){
+          return {is_low_edge: false, note: closest};
         }
       }
     }
@@ -243,9 +357,12 @@ class MIDIGrid{
       }
     }
 
+    const hovered_index = this.getHoveredNoteIndex();
+
     //hovered note on grid
     if(this.mouse_beat_float != undefined){
-      const active_note = this.getHoveredNote();
+      const notes = this.notes.get(this.mouse_beat_float.id);
+      const active_note = (notes != undefined && hovered_index != undefined) ? notes.get(hovered_index) : undefined;
       if(active_note != undefined){
         active_note.state = NoteStateEnum.Hovered;
         if(this.hovered_note != undefined && (this.hovered_note.beat !== active_note.beat || this.hovered_note.id !== active_note.id)){
@@ -258,24 +375,73 @@ class MIDIGrid{
         }
         this.hovered_note = undefined;
       }
+
+      //dragging note
+      if(this.dragged_note != undefined && this.dragged_note_index != undefined && notes != undefined){
+        const new_beat = this.mouse_beat_float.beat_fl-this.drag_beat_offset;
+        if(this.dragged_note_index == 0){
+          if(new_beat < 0){
+            this.dragged_note.beat = 0;
+          }else{
+            this.dragged_note.beat = new_beat;
+          }
+        }else{
+          //check lower
+          const before_note = notes.get(this.dragged_note_index-1)!;
+          if(before_note.beat + before_note.length > new_beat){
+            this.dragged_note.beat = before_note.beat + before_note.length;
+          }else if(this.dragged_note_index+1 < notes.size()){
+            //check higher
+            const after_note = notes.get(this.dragged_note_index+1)!;
+            if(after_note.beat < new_beat+this.dragged_note.length){
+              this.dragged_note.beat = after_note.beat-this.dragged_note.length;
+            }else{
+              this.dragged_note.beat = new_beat;
+            }
+          }else{
+            this.dragged_note.beat = new_beat;
+          }
+        }
+      }
+
+
+      //dragging note edge to resize note
+      if(this.mouse_beat_float != undefined && this.dragged_note_edge != undefined && notes != undefined){
+        if(this.dragged_note_edge.is_low_edge){
+          //for low drag beat edge side
+          const before_note = notes.get(this.dragged_note_index-1);
+          console.log(this.dragged_note_index);
+          if(before_note != undefined && before_note.beat+before_note.length > this.mouse_beat_float.beat_fl){
+            //prevent overlap before note
+            this.dragged_note_edge.note.beat = before_note.beat+before_note.length;
+            this.dragged_note_edge.note.length = this.dragged_note_edge.note.beat - this.dragged_note_edge.note.beat + this.dragged_note_edge.note.length;
+          }else{
+            const new_length = this.dragged_note_edge.note.beat - this.mouse_beat_float.beat_fl + this.dragged_note_edge.note.length;
+            this.dragged_note_edge.note.beat = this.mouse_beat_float.beat_fl;
+            this.dragged_note_edge.note.length = new_length;
+          }
+        }else{
+          const after_note = notes.get(this.dragged_note_index+1);
+          if(after_note != undefined){
+            if(after_note.beat < this.mouse_beat_float.beat_fl){
+              const new_length = after_note.beat - this.dragged_note_edge.note.beat;
+              this.dragged_note_edge.note.length = new_length;
+            }else{
+              const new_length = this.mouse_beat_float.beat_fl - this.dragged_note_edge.note.beat;
+              this.dragged_note_edge.note.length = new_length;
+            }
+          }else{
+            const new_length = this.mouse_beat_float.beat_fl - this.dragged_note_edge.note.beat;
+            this.dragged_note_edge.note.length = new_length;
+          }
+        }
+      }
     }else{
       if(this.hovered_note != undefined){
         this.hovered_note.state = NoteStateEnum.Default;
       }
       this.hovered_note = undefined;
     }
-
-    //dragging note
-    if(this.mouse_beat_float != undefined && this.dragged_note != undefined){
-      console.log(this.mouse_beat_float);
-      this.dragged_note.beat = this.mouse_beat_float.beat_fl-this.drag_beat_offset;
-      //this.dragged_note.
-    }
-
-
-
-    //check note edges
-    this.noteEdge();
   }
   leftViewBeat(): Float{
     return -this.getXOffset()/this.beat_width;
@@ -395,7 +561,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     this.buttons = new Button.ButtonSet();
 
     this.play_state = PlayStateEnum.Stopped;
-    this.play_button = new Button.BasicButton(10, 10, 60, 45);
+    this.play_button = new Button.BasicButton(10, 10, 70, 30, 15);
     this.play_button.text = "Play";
     this.play_button.onPressed = () => {
       console.log("pressed");
@@ -404,7 +570,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     }
     this.buttons.addButton(this.play_button);
 
-    const test_button = new Button.BasicButton(80, 4, 60, 30);
+    const test_button = new Button.BasicButton(100, 10, 70, 30, 15);
     test_button.text = "Test";
     test_button.onPressed = () => {
       console.log("testing_sound");
@@ -427,20 +593,6 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       this.sound_generator_same_volume.setVolume(v);
     }
 
-    const audio_test_button = new Button.BasicButton(300, 4, 60, 30);
-    audio_test_button.text = "Play T";
-    audio_test_button.onPressed = () => {
-      console.log("1");
-      if(audio_test_button.text == "Play T"){
-        audio_test_button.text = "Stop";
-        this.cs_test.play();
-      }else{
-        audio_test_button.text = "Play T";
-        this.cs_test.stop();
-      }
-    }
-    this.buttons.addButton(audio_test_button);
-
     this.cs_test = new Audio.ConstantSourceGainTest(audio_context);
   
     this.sound_generator_same_volume = new Audio.OscillatorCollectionSameGain(audio_context);
@@ -448,7 +600,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
 
     this.toggle_buttons = new Button.ToggleButtonSet();
 
-    const tog1 = new Button.ToggleButton(450, 10, 90, 12);
+    const tog1 = new Button.ToggleButton(450, 10, 90, 10);
     tog1.on_text = "Tick On";
     tog1.off_text = "Tick Off";
     tog1.state = Button.ToggleButtonStateEnum.On;
@@ -458,12 +610,24 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     tog1.onToggleOff = () => {
       this.tick_on = false;
     };
-
     this.toggle_buttons.addButton(tog1);
+
+    const tog2 = new Button.ToggleButton(550, 10, 120, 10);
+    tog2.on_text = "Add Note On";
+    tog2.off_text = "Add Note Off";
+    tog2.onToggleOn = () => {
+      this.grid.edit_state = GridEditStateEnum.Adding;
+    };
+    tog2.onToggleOff = () => {
+      this.grid.edit_state = GridEditStateEnum.Default;
+    };
+    this.toggle_buttons.addButton(tog2);
 
     this.ticker = new Audio.TickOscillator(audio_context);
     this.tick_on = tog1.isOn();
 
+
+    this.grid.addNote(0, 1);
   }
   playNote(note_tone: Note.RealNoteTone){
     console.log("playing note "+note_tone.toString());
@@ -712,9 +876,10 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
         if(engine.grid.active_coord != undefined && 
           engine.grid.active_coord.y == note-engine.min_id && 
           engine.grid.active_coord.x == id){
-          this.colour_shader.setColour(0.5, 1, 0.5);
+          //hovered note colour
+          this.colour_shader.setColour(0, 0, 1);
         }else{
-          this.colour_shader.setColour(1, 0.5, 0.5);
+          this.colour_shader.setColour(1, 0.5, 0.6);
         }
         WebGL.Shapes.Quad.drawRelative();
         x += beat_width + beat_gap;
@@ -730,7 +895,7 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
       for(const note of arr){
         const nx = x_offset+tl.x+beat_width*note.beat;
         const ny = grid_y_offset+beat_height*id;
-        const model = WebGL.WebGL.rectangleModel(nx, ny, beat_width, beat_height);
+        const model = WebGL.WebGL.rectangleModel(nx, ny, beat_width*note.length, beat_height);
         this.colour_shader.use();
 
         this.colour_shader.setMvp(vp.multiplyCopy(model));
@@ -740,10 +905,22 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
         }else if(note.state === NoteStateEnum.Default){
           this.colour_shader.setColour(0, 1, 0.5);
         }else if(note.state === NoteStateEnum.Hovered){
-          this.colour_shader.setColour(1, 0, 1);
+          this.colour_shader.setColour(0, 1, 0);
         }
 
         WebGL.Shapes.Quad.drawRelative();
+
+        //draw note edges
+        this.colour_shader.setColour(1.0, 0, 0.2);
+        const edge_thickness = 2;
+        const half_edge = edge_thickness*0.5;
+        const left_model = WebGL.WebGL.rectangleModel(nx-half_edge, ny, edge_thickness, beat_height);
+        this.colour_shader.setMvp(vp.multiplyCopy(left_model));
+        WebGL.Shapes.Quad.draw();
+
+        const right_model = WebGL.WebGL.rectangleModel(nx+(beat_width*note.length)-half_edge, ny, edge_thickness, beat_height);
+        this.colour_shader.setMvp(vp.multiplyCopy(right_model));
+        WebGL.Shapes.Quad.draw();
       }
       //console.log(note_arr.getArray());
     }
@@ -834,6 +1011,23 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     this.text_drawer.drawText(vp, 320, 15, `v ${engine.slider_test.value.toString()}`, 15);
 
     engine.toggle_buttons.draw(vp, this.colour_shader, this.text_drawer);
+
+
+
+    //test drawing beat edge
+    if(engine.grid.dragged_note_edge){
+      console.log("dr edge");
+      let nx = tl.x + beat_width*engine.grid.dragged_note_edge.note.beat;
+      const ny = engine.grid.getYGlobalOffset() + (engine.grid.dragged_note_edge.note.id)*(beat_height + beat_gap);
+      if(!engine.grid.dragged_note_edge.is_low_edge){
+        nx += (engine.grid.dragged_note_edge.note.length * beat_width) - beat_width*0.1;
+      }
+      const model = WebGL.WebGL.rectangleModel(nx+x_offset, ny, beat_width*0.1, beat_height);
+      this.colour_shader.use();
+      this.colour_shader.setColour(0.5, 0.5, 0.5);
+      this.colour_shader.setMvp(vp.multiplyCopy(model));
+      WebGL.Shapes.Quad.draw();
+    }
 
     /*
     //vertical

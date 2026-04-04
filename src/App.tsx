@@ -20,11 +20,7 @@ function App() {
   const audio_context = useRef(new AudioContext());
   //
   useEffect(() => {
-    /*
-    
-    */
-   Chord.tests();
-
+    Chord.tests();
   }, []);
 
   function testTempoChange(tempo: number){
