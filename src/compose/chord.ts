@@ -85,13 +85,13 @@ export class RealChord{
 
 
 export function tests(){
-  Note.RealNote.printNotes();
+  //Note.RealNote.printNotes();
 
   for(const i of minorTriad){
-    console.log(Note.RealNote.getRealNoteFromId(i+1));
+    //console.log(Note.RealNote.getRealNoteFromId(i+1));
   }
 
-  console.log(BaseChord.fromNote(Note.RealNote.getRealNote(Note.Note.C, Note.Accidental.None), ChordTypesEnum.major));
+  //console.log(BaseChord.fromNote(Note.RealNote.getRealNote(Note.Note.C, Note.Accidental.None), ChordTypesEnum.major));
 
 }
 

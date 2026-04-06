@@ -47,8 +47,10 @@ export class SortedArray<T>{
     const index = this.lowerBound(ele);
     this.array.splice(index, 0, ele);
   }
-  remove(index: Int32){
-    //todo
+  remove(i: Int32){
+    if(i < this.array.length && i >= 0){
+      this.array.splice(i, 1);
+    }
   }
   getArray(): T[]{
     return this.array;

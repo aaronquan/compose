@@ -9,4 +9,8 @@ test("first", () => {
   arr.add(20);
   const b = arr.getArray();
   expect(b).toStrictEqual([2,3,4,5,6,20]);
+  arr.remove(1);
+  const c = arr.getArray();
+  console.log(c);
+  expect(c).toStrictEqual([2,4,5,6,20]);
 });

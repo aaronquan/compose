@@ -50,7 +50,8 @@ type MIDINoteEdge = {
 
 const GridEditStateEnum = {
   Default: 0,
-  Adding: 1
+  Adding: 1,
+  Deleting: 2,
 } as const;
 
 type GridEditState = (typeof GridEditStateEnum)[keyof typeof GridEditStateEnum];
@@ -84,6 +85,7 @@ export class MIDIGrid{
   drag_beat_offset: Float;
 
   dragged_note_edge: MIDINoteEdge | undefined;
+  hovered_note_edge: MIDINoteEdge | undefined;
 
   selected_notes: Map<Int32, Set<MIDINote>>;
 
@@ -117,10 +119,15 @@ export class MIDIGrid{
     this.drag_beat_offset = 0;
 
     this.dragged_note_edge = undefined;
+    this.hovered_note_edge = undefined;
 
     this.selected_notes = new Map();
 
     this.edit_state = GridEditStateEnum.Default;
+  }
+
+  checkNoteEdge(point: WebGL.Matrix.Point2D){
+
   }
   
   mouseDown(canvas_point: WebGL.Matrix.Point2D){
@@ -160,6 +167,17 @@ export class MIDIGrid{
       }else if(this.edit_state == GridEditStateEnum.Adding && this.active_coord != undefined){
         this.addNote(this.active_coord.y, this.active_coord.x);
       }
+    }
+
+    //deleting notes
+    if(this.hovered_note != undefined && this.edit_state == GridEditStateEnum.Deleting){
+      const index = this.getHoveredNoteIndex()!;
+      const notes = this.notes.get(this.hovered_note.id);
+      if(notes != undefined){
+        notes.remove(index);
+      }
+      console.log("removing");
+      this.hovered_note = undefined;
     }
   }
   addNote(note_id: Int32, beat: Float, length: Float=1){
@@ -616,12 +634,26 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     tog2.on_text = "Add Note On";
     tog2.off_text = "Add Note Off";
     tog2.onToggleOn = () => {
+      tog3.toggleOff();
       this.grid.edit_state = GridEditStateEnum.Adding;
+
     };
     tog2.onToggleOff = () => {
       this.grid.edit_state = GridEditStateEnum.Default;
     };
     this.toggle_buttons.addButton(tog2);
+
+    const tog3 = new Button.ToggleButton(680, 10, 100, 10);
+    tog3.on_text = "Remove Note On";
+    tog3.off_text = "Remove Note Off";
+    tog3.onToggleOn = () => {
+      tog2.toggleOff();
+      this.grid.edit_state = GridEditStateEnum.Deleting;
+    };
+    tog3.onToggleOff = () => {
+      this.grid.edit_state = GridEditStateEnum.Default;
+    }
+    this.toggle_buttons.addButton(tog3);
 
     this.ticker = new Audio.TickOscillator(audio_context);
     this.tick_on = tog1.isOn();
@@ -778,11 +810,21 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
   text_drawer: WebGL.TextDrawer;
   fonts: WebGL.FontLoader;
 
+  note_colour: WebGL.Colour.ColourRGB;
+
+  hover_transition_colours: WebGL.Colour.ColourRGB[];
+
+  hover_note_colour: WebGL.Colour.ColourRGB;
+
   constructor(){
     this.colour_shader = new WebGL.Shader.MVPColourProgram();
     this.circle_only_shader = new WebGL.Shader.MVPCircleOnlyProgram();
     this.text_drawer = new WebGL.TextDrawer();
     this.fonts = new WebGL.FontLoader();
+
+    this.note_colour = WebGL.Colour.ColourUtils.fromRGB(1, 1, 1);
+    this.hover_note_colour = WebGL.Colour.ColourUtils.fromRGB(0.8, 0.8, 0.8);
+    this.hover_transition_colours = [];
   }
 
   loadTextures(onLoad:VoidFunction=EmptyFunction){

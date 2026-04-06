@@ -44,7 +44,7 @@ class NoteUtils{
   }
 }
 
-console.log(NoteUtils.asArray)
+//console.log(NoteUtils.asArray)
 
 const noteStringMap:Map<Note, string> = new Map();
 noteStringMap.set(Note.A, "A");
@@ -152,8 +152,6 @@ class RealBaseNote{
     return this.getNoteFromId(id);
   }
 }
-console.log(RealBaseNote.getNote(Note.F, Accidental.Sharp));
-
 
 
 function generateBaseNotes(): BaseNote[]{
@@ -168,14 +166,11 @@ function generateBaseNotes(): BaseNote[]{
 }
 
 const baseNotes = generateBaseNotes();
-console.log(baseNotes);
 //baseNotes[1].note = 4;
 
 const baseNoteAOrder = [1,2,4,7,8,10,11,13,16,17,19,20].map(i => baseNotes[i]);
-console.log(baseNoteAOrder); 
 
 const baseNoteAOrderFlat = [1,3,4,7,9,10,12,13,16,18,19,0].map(i => baseNotes[i]);
-console.log(baseNoteAOrderFlat);
 
 const baseNoteCOrder = [1, 2, 4, 5, 7, 10, 11, 13, 14, 16, 17, 19];
 
@@ -281,8 +276,6 @@ export class RealNote{
   //static getRealNoteFrom
 }
 
-RealNote.printNotes();
-
 export function getBaseNote(note:Note, accidental: Accidental):BaseNote{
   const index = (note as number)*3 + accidental as number;
   return baseNotes[index];
@@ -305,7 +298,6 @@ export function getBaseNote(note:Note, accidental: Accidental):BaseNote{
     const note_tones = new Map<number, RealNoteTone>();
     for(let i = 0; i < 88; i++){
       const octave = Math.floor((i+9) / 12);
-      //console.log(`Octave ${octave}, Note ${note.base_note.toString()}`);
       note_tones.set(i, new RealNoteTone(note, octave));
       note = note.interval(1);
     }
@@ -314,7 +306,6 @@ export function getBaseNote(note:Note, accidental: Accidental):BaseNote{
 
   private static addNoteTone(id: number){
     const octave = Math.floor((id+9) / 12);
-    //console.log(`Octave ${octave}, Note ${note.base_note.toString()}`);
     const note = RealNote.getRealNote(Note.A, Accidental.None).interval(id);
     RealNoteTone.note_tones.set(id, new RealNoteTone(note, octave));
   }
@@ -351,16 +342,9 @@ export function getBaseNote(note:Note, accidental: Accidental):BaseNote{
   }
 }
 
-console.log(RealNoteTone.note_tones);
-
 const tid = RealNoteTone.getNoteId(RealNote.getRealNote(Note.C, Accidental.None), 1);
-console.log(tid);
 
 const rnt = RealNoteTone.getNoteToneFromId(tid);
-//console.log(RealNoteTone.getNoteToneFromId(tid).toString());
-console.log(rnt.getFrequency());
-
-//console.log(baseNoteToString(getBaseNote(Note.D, Accidental.Sharp)));
 
 export function getBaseNoteFromString(){
 
@@ -383,7 +367,6 @@ for(let i = 0; i <= 15; i++){
   //const current_note = note;
   const note = baseNoteCOrderNotes[i%numNotes];
   const octave = middleOctave + Math.floor(i/numNotes);
-  //console.log(baseNoteToString(note));
   const frequency = shiftTone(AToneFrequency, i+MiddleCId);
   noteToneMap.set(i, {id: i, octave, notation: note, frequency})
 }
@@ -394,7 +377,6 @@ for(let i = 1; i <= 15; i++){
   const frequency = shiftTone(AToneFrequency, -i+MiddleCId);
   noteToneMap.set(-i, {id: -i, octave, notation: note, frequency});
 }
-//console.log(noteToneMap);
 
 //const noteIdMap: Map<NoteTone, number> = new Map();
 
@@ -535,7 +517,6 @@ export function idToBaseWhiteNote(id: number): number{
 }
 
 export function shiftTone(tone: number, shift: number):number{
-  console.log(tone*Math.pow(2, shift/12));
   return tone*Math.pow(2, shift/12);
 }
 

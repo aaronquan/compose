@@ -1,5 +1,6 @@
 
 type Float = number;
+type Int32 = number;
 export type ColourRGB = {
   red: Float;
   green: Float;
@@ -40,5 +41,18 @@ export class ColourUtils{
   }
   static cyan():ColourRGB{
     return this.fromRGB(0, 1, 1);
+  }
+  static linearTransitionColours(c1: ColourRGB, c2: ColourRGB, n: Int32): ColourRGB[]{
+    const colours: ColourRGB[] = [];
+    const step_r = (c2.red-c1.red)/(n+1);
+    const step_g = (c2.green-c1.green)/(n+1);
+    const step_b = (c2.blue-c1.blue)/(n+1);
+
+    for(let i = 1; i <= n; i++){
+      const col = ColourUtils.fromRGB(c1.red+step_r*i, c1.green+step_g*i, c1.blue+step_b*i);
+      colours.push(col);
+    }
+
+    return colours;
   }
 }

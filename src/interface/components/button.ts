@@ -217,6 +217,22 @@ export class ToggleButton implements Button{
   isOff(): boolean{
     return this.state === ToggleButtonStateEnum.Off || this.state === ToggleButtonStateEnum.OffHovered;
   }
+  toggleOff(){
+    if(this.state === ToggleButtonStateEnum.OnHovered){
+      this.state = ToggleButtonStateEnum.OffHovered;
+    }else if(this.state === ToggleButtonStateEnum.On){
+      this.state = ToggleButtonStateEnum.Off;
+    }
+    this.onToggleOff();
+  }
+  toggleOn(){
+    if(this.state === ToggleButtonStateEnum.Off){
+      this.state = ToggleButtonStateEnum.On;
+    }else if(this.state === ToggleButtonStateEnum.OffHovered){
+      this.state = ToggleButtonStateEnum.OnHovered;
+    }
+    this.onToggleOn();
+  }
   updateMouse(point: Point){
     //console.log(point);
     if(this.isInside(point.x, point.y)){ 
