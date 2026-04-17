@@ -3,7 +3,6 @@ import * as Shapes from '../WebGL/Shapes/Shapes';
 import * as CustomShader from "../WebGL/Shaders/custom";
 import * as Matrix from "../WebGL/Matrix/matrix";
 
-
 type Int32 = number;
 type Float = number;
 
@@ -101,3 +100,4 @@ export class App<E extends IEngine>{
 type Position = {
   x: number, y: number
 };
+

@@ -103,7 +103,10 @@ export function MIDIView(props: MIDIViewProps){
       WebGLGeneral.BasicModel.init();
       midi_app.current = new WebGLGeneral.App.App(engine.current, renderer.current);
       midi_app.current.loadResources(
-        () => midi_app.current!.initApp()
+        () => {
+          renderer.current!.setup(engine.current!);
+          midi_app.current!.initApp();
+        }
       );
       //model.rotate(Math.PI/2)
       //const vp = Matrix.TransformationMatrix3x3.orthographic(0, 1, 1, 0);

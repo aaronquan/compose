@@ -7,9 +7,11 @@ import * as Slider from "./../interface/components/slider";
 import * as Note from "../compose/note";
 
 import * as Audio from "./../compose/audio";
+import * as TextInput from "./../interface/components/text_input";
 
 type Int32 = number;
 type Float = number;
+type VoidFunction = () => void;
 const EmptyFunction: VoidFunction = () => {};
 
 
@@ -91,6 +93,8 @@ export class MIDIGrid{
 
   edit_state: GridEditState;
 
+  onNewEdgeHovered: VoidFunction;
+
   constructor(w: Int32, h: Int32){
     this.beat_width = 100;
     this.beat_gap = 0;
@@ -124,6 +128,8 @@ export class MIDIGrid{
     this.selected_notes = new Map();
 
     this.edit_state = GridEditStateEnum.Default;
+
+    this.onNewEdgeHovered = EmptyFunction;
   }
   
   mouseDown(canvas_point: WebGL.Matrix.Point2D){
@@ -320,6 +326,18 @@ export class MIDIGrid{
     }
     return undefined;
   }
+  static isNewEdge(new_edge: MIDINoteEdge | undefined, old_edge: MIDINoteEdge | undefined): boolean{
+    if(new_edge != undefined){
+      if(old_edge == undefined){
+        return true;
+      }
+      if(new_edge.is_low_edge != old_edge.is_low_edge && new_edge.note != old_edge.note){
+        return true;
+      }
+    }
+
+    return false;
+  }
   insideScrollBar(grid_point: WebGL.Matrix.Point2D): boolean{
     const bottom = this.displayHeight();
     return grid_point.y > bottom-this.scroll_height && grid_point.y < bottom && 
@@ -378,7 +396,6 @@ export class MIDIGrid{
     const hovered_index = this.getHoveredNoteIndex();
 
     //hovered note on grid
-    this.hovered_note_edge = undefined;
     if(this.mouse_beat_float != undefined){
       const notes = this.notes.get(this.mouse_beat_float.id);
       const active_note = (notes != undefined && hovered_index != undefined) ? notes.get(hovered_index) : undefined;
@@ -396,7 +413,12 @@ export class MIDIGrid{
       }
 
       //setting hovered edge
-      this.hovered_note_edge = this.noteEdge(this.mouse_beat_float);
+      //this.hovered_note_edge = undefined;
+      const new_edge = this.noteEdge(this.mouse_beat_float);
+      if(MIDIGrid.isNewEdge(new_edge, this.hovered_note_edge)){
+        this.onNewEdgeHovered();
+      }
+      this.hovered_note_edge = new_edge;
 
       //dragging note
       if(this.dragged_note != undefined && this.dragged_note_index != undefined && notes != undefined){
@@ -565,13 +587,16 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
   tick_on: boolean;
 
   beat_snapping: boolean;
+  snap_amount: Float;
 
   hover_animation: Int32 | undefined;
   animation_frames: Int32;
 
+  bpm_text_input: TextInput.TextInput;
+
   constructor(width: Int32, height: Int32, canvas: HTMLCanvasElement, audio_context: AudioContext){
     super();
-    this.bars = 20;
+    this.bars = 2;
     this.beats_per_bar = 4;
     this.min_id = 35;
     this.max_id = 58;
@@ -581,7 +606,14 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     this.canvas = canvas;
     this.canvas_mouse = undefined;
     this.global_mouse = undefined;
+
     this.grid = new MIDIGrid(this.bars*this.beats_per_bar, this.max_id-this.min_id+1);
+
+    this.grid.addNote(0, 1);
+    this.grid.onNewEdgeHovered = () => {
+      //console.log("new note");
+      this.hover_animation = 0;
+    }
 
     this.bpm = 60;
 
@@ -679,12 +711,18 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     this.ticker = new Audio.TickOscillator(audio_context);
     this.tick_on = tog1.isOn();
 
-
-    this.grid.addNote(0, 1);
-
     this.beat_snapping = false;
+    this.snap_amount = 1.0;
+
     this.hover_animation = undefined;
-    this.animation_frames = 5;
+    this.animation_frames = 40;
+    this.bpm_text_input = new TextInput.TextInput(550, 25, 60, 25);
+    this.bpm_text_input.onChange = (text) => {
+      console.log(text);
+      if(!Number.isNaN(text)){
+        this.bpm = Number.parseInt(text)
+      }
+    }
   }
   playNote(note_tone: Note.RealNoteTone){
     console.log("playing note "+note_tone.toString());
@@ -764,6 +802,13 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
   update(t: number): void {
     const time_elapsed = t-this.last_time; // milliseconds
     //console.log(time_elapsed);
+    if(this.hover_animation != undefined){
+      if(this.hover_animation < this.animation_frames){
+        this.hover_animation++;
+      }else if(this.hover_animation == this.animation_frames){
+        this.hover_animation = undefined;
+      }
+    }
     if(this.play_state == PlayStateEnum.Playing){
       const minutes_elapsed = time_elapsed/60000;
       const beat_progress = minutes_elapsed*this.bpm;
@@ -774,12 +819,16 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
         this.ticker.tick();
       }
       this.play_beat += beat_progress;
+      if(this.play_beat > this.bars*this.beats_per_bar){
+        this.togglePlayState();
+        //this.play_state = PlayStateEnum.Stopped;
+      }
       this.checkCurrentNotes();
 
 
       // add notes to play in (done in this.checkCurrentNotes())
     }
-
+    TextInput.TextGlobals.update(time_elapsed);
 
 
     this.last_time = t;
@@ -789,6 +838,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     //throw new Error("Method not implemented.");
     //this.checkCurrentNotes();
     console.log(this.current_playing_notes);
+    this.bpm_text_input.onKeyDown(ev);
   }
   protected handleKeyUp(ev: KeyboardEvent): void {
     //throw new Error("Method not implemented.");
@@ -807,6 +857,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     this.slider_test.updateMouse(canvas_point);
 
     this.toggle_buttons.updateMouse(canvas_point);
+    this.bpm_text_input.onMouseMove(canvas_point);
   }
   protected handleMouseDown(ev: MouseEvent): void {
     //console.log("click");
@@ -816,6 +867,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       this.slider_test.mouseDown(this.canvas_mouse);
 
       this.toggle_buttons.mouseDown();
+      this.bpm_text_input.onMouseDown(this.canvas_mouse);
     }
   }
   protected handleMouseUp(ev: MouseEvent): void {
@@ -825,6 +877,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       this.slider_test.mouseUp(this.canvas_mouse);
 
       this.toggle_buttons.mouseUp();
+      this.bpm_text_input.onMouseUp();
     }
   }
 }
@@ -835,12 +888,18 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
   text_drawer: WebGL.TextDrawer;
   fonts: WebGL.FontLoader;
 
-  note_colour: WebGL.Colour.ColourRGB;
+  default_note_colour: WebGL.Colour.ColourRGB;
 
   hover_transition_colours: WebGL.Colour.ColourRGB[];
 
+  edge_note_colour: WebGL.Colour.ColourRGB;
+
   hover_note_colour: WebGL.Colour.ColourRGB;
   drag_note_colour: WebGL.Colour.ColourRGB;
+  playing_note_colour: WebGL.Colour.ColourRGB;
+
+  header_background_colour: WebGL.Colour.ColourRGB;
+  beat_background_colour: WebGL.Colour.ColourRGB;
 
 
   constructor(){
@@ -849,10 +908,15 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     this.text_drawer = new WebGL.TextDrawer();
     this.fonts = new WebGL.FontLoader();
 
-    this.note_colour = WebGL.Colour.ColourUtils.fromRGB(1, 1, 1);
+    this.default_note_colour = WebGL.Colour.ColourUtils.fromRGB(1, 1, 1);
+    this.hover_transition_colours = [];
+    this.edge_note_colour = WebGL.Colour.ColourUtils.fromRGB(0.5, 0.5, 0.5);
     this.hover_note_colour = WebGL.Colour.ColourUtils.fromRGB(0.8, 0.8, 0.8);
     this.drag_note_colour = WebGL.Colour.ColourUtils.fromRGB(0, 0, 0);
-    this.hover_transition_colours = WebGL.Colour.ColourUtils.linearTransitionColours(this.note_colour, this.hover_note_colour, 5);
+    this.playing_note_colour = WebGL.Colour.ColourUtils.fromRGB(1.0, 0.2, 0.2);
+
+    this.header_background_colour = WebGL.Colour.ColourUtils.fromRGB(0.3, 0.1, 0.9);
+    this.beat_background_colour = WebGL.Colour.ColourUtils.fromRGB(0.2,0.2,0.4);
   }
 
   loadTextures(onLoad:VoidFunction=EmptyFunction){
@@ -870,7 +934,9 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
   }
 
   setup(engine: MIDIEngine){
-    //todo
+    console.log("setting up renderer");
+    this.hover_transition_colours = WebGL.Colour.ColourUtils.linearTransitionColours(this.hover_note_colour, this.edge_note_colour, engine.animation_frames+1);
+    console.log(this.hover_transition_colours);
   }
 
   render(engine: MIDIEngine){
@@ -901,9 +967,13 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     WebGL.Shapes.Quad.drawRelative();*/
     const grid_height = Math.min(engine.grid.totalHeight(), engine.grid.max_display_height);
     const grid_width = engine.grid.max_display_width;
-    //drawing header
+
+    //applying scisson on grid
     gl.enable(gl.SCISSOR_TEST);
     gl.scissor(tl.x, engine.height-(tl.y+grid_height), grid_width, grid_height);
+
+
+    //drawing header
     const x_offset = engine.grid.getXOffset();
     const grid_y_offset = engine.grid.getYGlobalOffset();
 
@@ -915,7 +985,7 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
       const bar_beat = engine.getBarBeatFromId(id);
       this.colour_shader.use();
       this.colour_shader.setMvp(vp.multiplyCopy(model));
-      this.colour_shader.setColour(0.5, 0.5, 0.5);
+      this.colour_shader.setColourFromColourRGB(this.header_background_colour);
 
       WebGL.Shapes.Quad.drawRelative();
 
@@ -924,22 +994,10 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
       x += beat_width + beat_gap;
     }
 
+    //drawing grid background
 
+    //old method all notes individual
     /*
-    for(let bar = 0; bar < engine.bars; bar++){
-      for(let beat = 0; beat < engine.beats_per_bar; beat++){
-        const model = WebGL.WebGL.rectangleModel(x+x_offset, y, beat_width, beat_height);
-        this.colour_shader.use();
-        this.colour_shader.setMvp(vp.multiplyCopy(model));
-        this.colour_shader.setColour(0.5, 0.5, 0.5);
-
-        WebGL.Shapes.Quad.drawRelative();
-
-        this.text_drawer.drawText(vp, x+x_offset, y, (beat+1).toString(), 16);
-
-        x += beat_width + beat_gap;
-      }
-    }*/
     for(let note = engine.min_id; note <= engine.max_id; note++){
       x = tl.x + beat_width*start_beat_id;
       y += beat_height + beat_gap;
@@ -954,16 +1012,19 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
           //hovered note colour
           this.colour_shader.setColour(0, 0, 1);
         }else{
-          this.colour_shader.setColour(1, 0.5, 0.6);
+          this.colour_shader.setColourFromColourRGB(this.beat_background_colour);
         }
         WebGL.Shapes.Quad.drawRelative();
         x += beat_width + beat_gap;
       }
-    }
+    }*/
+
+    //new method - block
+
 
     //active notes
     this.colour_shader.use();
-    this.colour_shader.setColour(0, 1, 0.5);
+    //this.colour_shader.setColour(0, 1, 0.5);
     for(const [id, note_arr] of engine.grid.notes){
       const arr = note_arr.getArray();
       for(const note of arr){
@@ -975,17 +1036,17 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
         this.colour_shader.setMvp(vp.multiplyCopy(model));
 
         if(note.state === NoteStateEnum.Playing){
-          this.colour_shader.setColour(1, 0, 0);
+          this.colour_shader.setColourFromColourRGB(this.playing_note_colour);
         }else if(note.state === NoteStateEnum.Default){
-          this.colour_shader.setColour(0, 1, 0.5);
+          this.colour_shader.setColourFromColourRGB(this.default_note_colour);
         }else if(note.state === NoteStateEnum.Hovered){
-          this.colour_shader.setColour(0, 1, 0);
+          this.colour_shader.setColourFromColourRGB(this.hover_note_colour);
         }
 
         WebGL.Shapes.Quad.drawRelative();
 
         //draw note edges
-        this.colour_shader.setColour(1.0, 0, 0.2);
+        this.colour_shader.setColourFromColourRGB(this.edge_note_colour);
         const edge_thickness = 2;
         const half_edge = edge_thickness*0.5;
         const left_model = WebGL.WebGL.rectangleModel(nx-half_edge, ny, edge_thickness, beat_height);
@@ -1044,6 +1105,7 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     const right_grid = tl.x+grid_width;
     const bottom_grid = tl.y+grid_height;
 
+
     this.colour_shader.use();
     this.colour_shader.setColour(1, 1, 1);
     //border
@@ -1091,23 +1153,15 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     //test drawing beat edge
     if(engine.grid.dragged_note_edge != undefined){
       this.drawNoteEdge(engine, engine.grid.dragged_note_edge, tl.x+x_offset, grid_y_offset, this.drag_note_colour);
-      
-      console.log("dr edge");
-      /*let nx = tl.x + beat_width*engine.grid.dragged_note_edge.note.beat;
-      const ny = grid_y_offset + (engine.grid.dragged_note_edge.note.id)*(beat_height + beat_gap);
-      if(!engine.grid.dragged_note_edge.is_low_edge){
-        nx += (engine.grid.dragged_note_edge.note.length * beat_width) - beat_width*0.1;
-      }
-      const model = WebGL.WebGL.rectangleModel(nx+x_offset, ny, beat_width*0.1, beat_height);
-      this.colour_shader.use();
-      this.colour_shader.setColour(0.5, 0.5, 0.5);
-      this.colour_shader.setMvp(vp.multiplyCopy(model));
-      WebGL.Shapes.Quad.draw();*/
     }
     //hovered beat edge
     else if(engine.grid.hovered_note_edge != undefined){
-      this.drawNoteEdge(engine, engine.grid.hovered_note_edge, tl.x + x_offset, grid_y_offset, this.hover_note_colour);
+      const colour = engine.hover_animation != undefined ? this.hover_transition_colours[engine.hover_animation] : this.edge_note_colour;
+      this.drawNoteEdge(engine, engine.grid.hovered_note_edge, tl.x + x_offset, grid_y_offset, colour);
     }
+
+    engine.bpm_text_input.draw(vp, this.colour_shader, this.text_drawer);
+    this.text_drawer.drawText(vp, 620, 25, engine.bpm.toString(), 12);
 
     /*
     //vertical

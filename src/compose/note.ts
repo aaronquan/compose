@@ -318,7 +318,6 @@ export function getBaseNote(note:Note, accidental: Accidental):BaseNote{
   }
 
   static getNoteToneFromRealNoteAndOctave(rn: RealNote, octave: number): RealNoteTone{
-    //todo
     const id = RealNoteTone.getNoteId(rn, octave);
     return RealNoteTone.getNoteToneFromId(id);
   }
