@@ -58,6 +58,10 @@ const GridEditStateEnum = {
 
 type GridEditState = (typeof GridEditStateEnum)[keyof typeof GridEditStateEnum];
 
+const GridSnapSettingsEnum = {
+
+} as const; //to use;
+
 export class MIDIGrid{
 
   beat_width: Int32;
@@ -95,6 +99,8 @@ export class MIDIGrid{
 
   onNewEdgeHovered: VoidFunction;
 
+  note_snap: Float | undefined;
+
   constructor(w: Int32, h: Int32){
     this.beat_width = 100;
     this.beat_gap = 0;
@@ -130,6 +136,8 @@ export class MIDIGrid{
     this.edit_state = GridEditStateEnum.Default;
 
     this.onNewEdgeHovered = EmptyFunction;
+
+    this.note_snap = 0.5;//undefined;
   }
   
   mouseDown(canvas_point: WebGL.Matrix.Point2D){
@@ -140,6 +148,54 @@ export class MIDIGrid{
     const sbar_x = this.scroll*sbar_leftover;
     //test mouse over scroll bar
     //note editing (edges, beat reposition)
+
+    //scroll / adding notes
+    if(this.insideGrid(canvas_point)){
+      //scrolling
+      if(this.insideScrollBar(grid_point)){
+        if(grid_point.x > sbar_x && grid_point.x < sbar_x + sbar_width){
+          this.scroll_drag = true;
+        }else{
+          this.setScroll(grid_point);
+        }
+      }
+      //adding
+      else if(this.edit_state == GridEditStateEnum.Adding){
+        const coord = this.active_coord!;
+        this.addNote(coord.y, coord.x);
+      }else if(this.edit_state == GridEditStateEnum.Deleting){
+        //deleting
+        const index = this.getHoveredNoteIndex()!;
+        const notes = this.notes.get(this.hovered_note!.id);
+        if(notes != undefined){
+          notes.remove(index);
+        }
+        console.log("removing");
+        this.hovered_note = undefined;
+
+      }else{
+        if(this.mouse_beat_float != undefined){
+          const edge = this.noteEdge(this.mouse_beat_float);
+          this.dragged_note_edge = edge;
+          if(edge != undefined){
+            this.drag_beat_offset = edge.is_low_edge ? 
+              this.mouse_beat_float.beat_fl - edge.note.beat :
+            edge.note.beat+edge.note.length - this.mouse_beat_float.beat_fl;
+            this.dragged_note_index = this.closestNoteIndex(this.mouse_beat_float)!;
+            //console.log(`edge ${this.dragged_note_index}`);
+          }
+          else if(this.hovered_note != undefined){
+            this.dragged_note = this.hovered_note;
+            this.drag_beat_offset = this.mouse_beat_float.beat_fl - this.dragged_note.beat;
+            this.dragged_note_index = this.getHoveredNoteIndex()!;
+            //console.log(this.dragged_note_index);
+          }
+        }
+        console.log("other");
+      }
+    }
+
+    /*
     if(this.mouse_beat_float != undefined){
       const edge = this.noteEdge(this.mouse_beat_float);
       this.dragged_note_edge = edge;
@@ -156,9 +212,10 @@ export class MIDIGrid{
         this.dragged_note_index = this.getHoveredNoteIndex()!;
         //console.log(this.dragged_note_index);
       }
-    }
+    }*/
 
     //scroll / adding notes
+    /*
     if(this.insideGrid(canvas_point)){
       if(this.insideScrollBar(grid_point)){
         if(grid_point.x > sbar_x && grid_point.x < sbar_x + sbar_width){
@@ -169,9 +226,11 @@ export class MIDIGrid{
       }else if(this.edit_state == GridEditStateEnum.Adding && this.active_coord != undefined){
         this.addNote(this.active_coord.y, this.active_coord.x);
       }
-    }
+    }*/
 
+    
     //deleting notes
+    /*
     if(this.hovered_note != undefined && this.edit_state == GridEditStateEnum.Deleting){
       const index = this.getHoveredNoteIndex()!;
       const notes = this.notes.get(this.hovered_note.id);
@@ -180,14 +239,43 @@ export class MIDIGrid{
       }
       console.log("removing");
       this.hovered_note = undefined;
-    }
+    }*/
   }
   addNote(note_id: Int32, beat: Float, length: Float=1){
+
+    console.log("trying to add note");
     if(!this.notes.has(note_id)){
       this.notes.set(note_id, new ArrayUtils.SortedArray([], MIDINoteCmp));
     }
-    this.notes.get(note_id)!.add({id: note_id, beat, length, state: NoteStateEnum.Default});
-
+    //check intersecting
+    const notes = this.notes.get(note_id)!;
+    const sea = {id: note_id, beat: beat+(length*0.5), length: 0, state: NoteStateEnum.Default};
+    const index = notes.lowerBound(sea) - 1;
+    const note = notes.get(index);
+    const next_note = notes.get(index+1);
+    //console.log(
+    if(note != undefined){
+      console.log(note);
+      console.log(next_note);
+      if(next_note != undefined){
+        if(beat >= note.beat + note.length && beat + length < next_note.beat){
+          console.log("new note added between");
+          //can add
+          notes.add({id: note_id, beat, length, state: NoteStateEnum.Default});
+        }else{
+          //blocked
+          console.log("blocked both sides");
+        }
+      }else{
+        if(beat >= note.beat + note.length && beat+length <= this.width){
+          console.log("new note added");
+          notes.add({id: note_id, beat, length, state: NoteStateEnum.Default});
+        }
+      }
+    }else{
+      console.log("new note added");
+      notes.add({id: note_id, beat, length, state: NoteStateEnum.Default});
+    }
     if(this.mouse_beat_float != undefined){
       this.hovered_note_edge = this.noteEdge(this.mouse_beat_float);
     }
@@ -422,7 +510,84 @@ export class MIDIGrid{
 
       //dragging note
       if(this.dragged_note != undefined && this.dragged_note_index != undefined && notes != undefined){
-        const new_beat = this.mouse_beat_float.beat_fl-this.drag_beat_offset;
+        let new_beat = this.mouse_beat_float.beat_fl-this.drag_beat_offset;
+        if(this.note_snap != undefined){
+          const floor_beat = Math.floor(new_beat);
+          let closest_snap = floor_beat;
+          for(let i = this.note_snap; i <= 1; i+=this.note_snap){
+            if(Math.abs(new_beat - (floor_beat + i)) < Math.abs(new_beat - closest_snap)){
+              closest_snap = (floor_beat + i);
+            }
+          }
+
+          new_beat = closest_snap;
+          //console.log(new_beat);
+          //console.log(closest_snap);
+        }
+        const before_note = notes.get(this.dragged_note_index-1);
+        const after_note = notes.get(this.dragged_note_index+1);
+        if(before_note != undefined && after_note != undefined){
+          //note before and after
+          if(new_beat < before_note.beat+before_note.length){
+            this.dragged_note.beat = before_note.beat+before_note.length;
+          }else if(after_note.beat < new_beat+this.dragged_note.length){
+            //note after
+            this.dragged_note.beat = after_note.beat-this.dragged_note.length;
+          }else{
+            this.dragged_note.beat = new_beat;
+          }
+        }
+        else if(before_note == undefined && after_note == undefined){
+          //no note before or after
+          if(new_beat < 0){
+            this.dragged_note.beat = 0;
+          }else if(new_beat + this.dragged_note.length > this.width){
+            //last note cannot be dragged past end
+            this.dragged_note.beat = this.width-this.dragged_note.length;
+            /*
+            if(this.note_snap != undefined){
+              while(new_beat + this.dragged_note.length > this.width){
+                new_beat -= this.note_snap;
+              }
+              this.dragged_note.beat = new_beat;
+            }else{
+              //console.log(this.width-this.dragged_note.length);
+              this.dragged_note.beat = this.width-this.dragged_note.length;
+            }*/
+          }else{
+            this.dragged_note.beat = new_beat;
+          }
+        }else if(before_note != undefined && after_note == undefined){
+          //note before and no note after
+          if(new_beat + this.dragged_note.length > this.width){
+            //last note cannot be dragged past end
+            if(this.note_snap != undefined){
+              while(new_beat + this.dragged_note.length > this.width){
+                new_beat -= this.note_snap;
+              }
+              this.dragged_note.beat = new_beat;
+            }else{
+              this.dragged_note.beat = this.width-this.dragged_note.length;
+            }
+          }else if(new_beat < before_note.beat+before_note.length){
+            //note before
+            this.dragged_note.beat = before_note.beat+before_note.length;
+          }else{
+            this.dragged_note.beat = new_beat;
+          }
+        }else if(before_note == undefined && after_note != undefined){
+          //no note before and note after
+          if(new_beat < 0){
+            this.dragged_note.beat = 0;
+          }else if(after_note.beat < new_beat+this.dragged_note.length){
+            //note after intersection
+            this.dragged_note.beat = after_note.beat-this.dragged_note.length;
+          }else{
+            this.dragged_note.beat = new_beat;
+          }
+        }
+
+        /*
         if(this.dragged_note_index == 0){
           if(new_beat < 0){
             this.dragged_note.beat = 0;
@@ -445,7 +610,7 @@ export class MIDIGrid{
           }else{
             this.dragged_note.beat = new_beat;
           }
-        }
+        }*/
       }
 
 
@@ -609,7 +774,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
 
     this.grid = new MIDIGrid(this.bars*this.beats_per_bar, this.max_id-this.min_id+1);
 
-    this.grid.addNote(0, 1);
+    this.grid.addNote(0, 6);
     this.grid.onNewEdgeHovered = () => {
       //console.log("new note");
       this.hover_animation = 0;
@@ -701,9 +866,11 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     snap_button.off_text = "Snap off";
     snap_button.onToggleOn = () => {
       this.beat_snapping = true;
+      this.grid.note_snap = 0.5;
     }
     snap_button.onToggleOff = () => {
       this.beat_snapping = false;
+      this.grid.note_snap = undefined;
     }
 
     this.toggle_buttons.addButton(snap_button);
@@ -901,6 +1068,7 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
   header_background_colour: WebGL.Colour.ColourRGB;
   beat_background_colour: WebGL.Colour.ColourRGB;
 
+  text_colour: WebGL.Colour.ColourRGB;
 
   constructor(){
     this.colour_shader = new WebGL.Shader.MVPColourProgram();
@@ -917,6 +1085,8 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
 
     this.header_background_colour = WebGL.Colour.ColourUtils.fromRGB(0.3, 0.1, 0.9);
     this.beat_background_colour = WebGL.Colour.ColourUtils.fromRGB(0.2,0.2,0.4);
+
+    this.text_colour = WebGL.Colour.ColourUtils.fromRGB(1, 1, 1);
   }
 
   loadTextures(onLoad:VoidFunction=EmptyFunction){
@@ -1199,7 +1369,10 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
         y += engine.grid.beat_height;
       }
     }*/
-
+    if(engine.grid.hovered_note != undefined){
+      this.drawNoteDetails(engine, engine.grid.hovered_note);
+    }
+    this.engineDetails(engine);
   }
   drawNoteEdge(engine: MIDIEngine, edge: MIDINoteEdge, x: Float, y: Float, colour: WebGL.Colour.ColourRGB){
     const beat_width = engine.grid.beat_width;
@@ -1214,5 +1387,21 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     this.colour_shader.setColour(colour.red, colour.green, colour.blue);
     this.colour_shader.setMvp(engine.vp.multiplyCopy(model));
     WebGL.Shapes.Quad.draw();
+  }
+  drawNoteDetails(engine: MIDIEngine, note: MIDINote){
+    const beat_text = `Beat ${note.beat.toFixed(2)}`;
+    const length_text = `Length ${note.length.toFixed(2)}`;
+    this.text_drawer.drawTextColour(engine.vp, 600, 105, note.id.toString(), 10, this.text_colour);
+    this.text_drawer.drawTextColour(engine.vp, 600, 120, beat_text, 10, this.text_colour);
+    this.text_drawer.drawTextColour(engine.vp, 600, 132, length_text, 10, this.text_colour);
+  }
+  engineDetails(engine: MIDIEngine){
+    const ts = 8;
+    if(engine.canvas_mouse != undefined){
+      const mouse_text = `x ${engine.canvas_mouse.x}, y ${engine.canvas_mouse.y}`
+      const tw = this.text_drawer.getTextWidth(mouse_text, ts);
+      const x = engine.width - tw;
+      this.text_drawer.drawTextColour(engine.vp, x, engine.height-ts, mouse_text, ts, this.text_colour);
+    }
   }
 }
