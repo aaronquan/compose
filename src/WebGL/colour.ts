@@ -42,6 +42,9 @@ export class ColourUtils{
   static cyan():ColourRGB{
     return this.fromRGB(0, 1, 1);
   }
+  static grey(a: Float=0.5): ColourRGB{
+    return this.fromRGB(a, a, a);
+  }
   static linearTransitionColours(c1: ColourRGB, c2: ColourRGB, n: Int32): ColourRGB[]{
     const colours: ColourRGB[] = [];
     const step_r = (c2.red-c1.red)/(n+1);

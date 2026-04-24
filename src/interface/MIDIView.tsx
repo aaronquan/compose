@@ -10,7 +10,8 @@ import * as Note from "./../compose/note";
 
 import * as WebGLGeneral from "./../WebGL/globals";
 
-import * as MIDI from "./../renderers/midi";
+import {MIDIRenderer} from "./../renderers/midi";
+import { MIDIEngine } from "../engine/engine";
 
 type Double = number;
 type Int32 = number;
@@ -80,9 +81,9 @@ export function MIDIView(props: MIDIViewProps){
 
   const vp = perspective.multiplyCopy(model);
 
-  const engine = useRef<MIDI.MIDIEngine | undefined>();
-  const renderer = useRef<MIDI.MIDIRenderer | undefined>();
-  const midi_app = useRef<WebGLGeneral.App.App<MIDI.MIDIEngine> | undefined>();
+  const engine = useRef<MIDIEngine | undefined>();
+  const renderer = useRef<MIDIRenderer | undefined>();
+  const midi_app = useRef<WebGLGeneral.App.App<MIDIEngine> | undefined>();
   const loaded = useRef<boolean>(false);
 
   useEffect(() => {
@@ -95,8 +96,8 @@ export function MIDIView(props: MIDIViewProps){
       c.height = h;
       WebGL.initialise(c);
       piano_renderer.current = new PianoRenderer.StaticPianoRenderer(w, h);
-      engine.current = new MIDI.MIDIEngine(w, h, c, props.audio_context);
-      renderer.current = new MIDI.MIDIRenderer();
+      engine.current = new MIDIEngine(w, h, c, props.audio_context);
+      renderer.current = new MIDIRenderer();
       //drawGrid();
       //drawPiano();
       //WebGLGeneral.testBasicModel();
