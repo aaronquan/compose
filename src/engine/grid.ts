@@ -17,10 +17,10 @@ type Coord = {
 //MIDI Engine types
 /*
 
-type MIDINote = MIDIEngine.MIDINote;
+type MIDIConsts.MIDINote = MIDIEngine.MIDIConsts.MIDINote;
 
 
-const NoteStateEnum = {
+const MIDIConsts.NoteStateEnum = {
   Default: 0,
   Playing: 1,
   Hovered: 2,
@@ -29,14 +29,14 @@ const NoteStateEnum = {
 } as const;
 type NoteState = MIDIEngine.NoteState;
 
-const GridEditStateEnum = {
+const MIDIConsts.GridEditStateEnum = {
   Default: 0,
   Adding: 1,
   Deleting: 2,
 } as const;
-type GridEditState = MIDIEngine.GridEditState;
+type MIDIConsts.GridEditState = MIDIEngine.MIDIConsts.GridEditState;
 
-function MIDINoteCmp(n1: MIDINote, n2: MIDINote): Int32{
+function MIDIConsts.MIDINoteCmp(n1: MIDIConsts.MIDINote, n2: MIDIConsts.MIDINote): Int32{
   return n1.beat - n2.beat;
 }
 
@@ -45,12 +45,12 @@ type Coord = {
   y: Int32
 }
 
-type MIDINoteEdge = {
+type MIDIConsts.MIDINoteEdge = {
   is_low_edge: boolean;
-  note: MIDINote;
+  note: MIDIConsts.MIDINote;
 }
 
-type NoteIdFloat = {
+type MIDIConsts.NoteIdFloat = {
   id: Int32,
   beat_fl: Float
 }
@@ -70,7 +70,7 @@ export class MIDIGrid{
 
   active_coord: Coord | undefined;
   header_coord: Int32 | undefined;
-  mouse_beat_float: NoteIdFloat | undefined;
+  mouse_beat_float: MIDIConsts.NoteIdFloat | undefined;
 
   scroll_height: Int32;
   scroll: Float;
@@ -78,25 +78,25 @@ export class MIDIGrid{
 
   scroll_drag: boolean;
 
-  notes: Map<Int32, ArrayUtils.SortedArray<MIDINote>>;
-  hovered_note: MIDINote | undefined;
-  dragged_note: MIDINote | undefined;
+  notes: Map<Int32, ArrayUtils.SortedArray<MIDIConsts.MIDINote>>;
+  hovered_note: MIDIConsts.MIDINote | undefined;
+  dragged_note: MIDIConsts.MIDINote | undefined;
   dragged_note_index: Int32;
   drag_beat_offset: Float;
 
-  dragged_note_edge: MIDINoteEdge | undefined;
-  hovered_note_edge: MIDINoteEdge | undefined;
+  dragged_note_edge: MIDIConsts.MIDINoteEdge | undefined;
+  hovered_note_edge: MIDIConsts.MIDINoteEdge | undefined;
 
-  selected_notes: Map<Int32, Set<MIDINote>>;
+  selected_notes: Map<Int32, Set<MIDIConsts.MIDINote>>;
 
-  edit_state: GridEditState;
+  edit_state: MIDIConsts.GridEditState;
 
   onNewEdgeHovered: VoidFunction;
 
   note_snap: Float | undefined;
   note_add_length: Float;
 
-  note_add_preview: MIDINote | undefined;
+  note_add_preview: MIDIConsts.MIDINote | undefined;
 
   constructor(w: Int32, h: Int32){
     this.beat_width = 100;
@@ -130,7 +130,7 @@ export class MIDIGrid{
 
     this.selected_notes = new Map();
 
-    this.edit_state = GridEditStateEnum.Default;
+    this.edit_state = MIDIConsts.GridEditStateEnum.Default;
 
     this.onNewEdgeHovered = EmptyFunction;
 
@@ -161,12 +161,12 @@ export class MIDIGrid{
         }
       }
       //adding
-      else if(this.edit_state == GridEditStateEnum.Adding){
+      else if(this.edit_state == MIDIConsts.GridEditStateEnum.Adding){
         //const coord = this.active_coord!;
         if(this.note_add_preview != undefined){
           this.addNote(this.note_add_preview.id, this.note_add_preview.beat, this.note_add_length);
         }
-      }else if(this.edit_state == GridEditStateEnum.Deleting){
+      }else if(this.edit_state == MIDIConsts.GridEditStateEnum.Deleting){
         //deleting
         const index = this.getHoveredNoteIndex()!;
         const notes = this.notes.get(this.hovered_note!.id);
@@ -202,11 +202,11 @@ export class MIDIGrid{
 
     console.log("trying to add note");
     if(!this.notes.has(note_id)){
-      this.notes.set(note_id, new ArrayUtils.SortedArray([], MIDINoteCmp));
+      this.notes.set(note_id, new ArrayUtils.SortedArray([], MIDIConsts.MIDINoteCmp));
     }
     //check intersecting
     const notes = this.notes.get(note_id)!;
-    const sea = {id: note_id, beat: beat+(length*0.5), length: 0, state: NoteStateEnum.Default};
+    const sea = {id: note_id, beat: beat+(length*0.5), length: 0, state: MIDIConsts.NoteStateEnum.Default};
     const index = notes.lowerBound(sea) - 1;
     const note = notes.get(index);
     const next_note = notes.get(index+1);
@@ -218,7 +218,7 @@ export class MIDIGrid{
         if(beat >= note.beat + note.length && beat + length < next_note.beat){
           console.log("new note added between");
           //can add
-          notes.add({id: note_id, beat, length, state: NoteStateEnum.Default});
+          notes.add({id: note_id, beat, length, state: MIDIConsts.NoteStateEnum.Default});
         }else{
           //blocked
           console.log("blocked both sides");
@@ -226,12 +226,12 @@ export class MIDIGrid{
       }else{
         if(beat >= note.beat + note.length && beat+length <= this.width){
           console.log("new note added");
-          notes.add({id: note_id, beat, length, state: NoteStateEnum.Default});
+          notes.add({id: note_id, beat, length, state: MIDIConsts.NoteStateEnum.Default});
         }
       }
     }else{
       console.log("new note added");
-      notes.add({id: note_id, beat, length, state: NoteStateEnum.Default});
+      notes.add({id: note_id, beat, length, state: MIDIConsts.NoteStateEnum.Default});
     }
     if(this.mouse_beat_float != undefined){
       this.hovered_note_edge = this.noteEdge(this.mouse_beat_float);
@@ -242,7 +242,7 @@ export class MIDIGrid{
     this.dragged_note = undefined;
     this.dragged_note_edge = undefined;
   }
-  getHoveredNote(): MIDINote | undefined{
+  getHoveredNote(): MIDIConsts.MIDINote | undefined{
     
     if(this.mouse_beat_float != undefined){
       //console.log(this.mouse_beat_float);
@@ -262,7 +262,7 @@ export class MIDIGrid{
       //console.log(this.mouse_beat_float);
       const notes = this.notes.get(this.mouse_beat_float.id);
       if(notes != undefined){
-        const sea = {id: this.mouse_beat_float.id, beat: this.mouse_beat_float.beat_fl, length: 0, state: NoteStateEnum.Default};
+        const sea = {id: this.mouse_beat_float.id, beat: this.mouse_beat_float.beat_fl, length: 0, state: MIDIConsts.NoteStateEnum.Default};
         const index = notes.lowerBound(sea) - 1;
         if(index >= 0 && index < notes.size()){
           const note = notes.get(index)!;
@@ -274,7 +274,7 @@ export class MIDIGrid{
     }
     return undefined;
   }
-  closestNote(note_id_fl: NoteIdFloat): MIDINote | undefined{
+  closestNote(note_id_fl: MIDIConsts.NoteIdFloat): MIDIConsts.MIDINote | undefined{
     const notes = this.notes.get(note_id_fl.id);
     if(notes != undefined){
       const index = this.closestNoteIndex(note_id_fl);
@@ -285,11 +285,11 @@ export class MIDIGrid{
     }
     return undefined;
   }
-  closestNoteIndex(note_id_fl: NoteIdFloat): Int32 | undefined{
+  closestNoteIndex(note_id_fl: MIDIConsts.NoteIdFloat): Int32 | undefined{
     if(note_id_fl != undefined){
       const notes = this.notes.get(note_id_fl.id);
       if(notes != undefined){
-        const sea = {id: note_id_fl.id, beat: note_id_fl.beat_fl, length: 0, state: NoteStateEnum.Default};
+        const sea = {id: note_id_fl.id, beat: note_id_fl.beat_fl, length: 0, state: MIDIConsts.NoteStateEnum.Default};
         const index = notes.lowerBound(sea) - 1;
         if(index >= 0 && index < notes.size()){
           const note = notes.get(index)!;
@@ -316,7 +316,7 @@ export class MIDIGrid{
     }
     return undefined;
   }
-  noteEdge(beat_float: NoteIdFloat, edge_amount: Float=0.1): MIDINoteEdge | undefined{
+  noteEdge(beat_float: MIDIConsts.NoteIdFloat, edge_amount: Float=0.1): MIDIConsts.MIDINoteEdge | undefined{
     if(beat_float != undefined){
       const closest = this.closestNote(beat_float);
       if(closest != undefined){
@@ -331,7 +331,7 @@ export class MIDIGrid{
     }
     return undefined;
   }
-  static isNewEdge(new_edge: MIDINoteEdge | undefined, old_edge: MIDINoteEdge | undefined): boolean{
+  static isNewEdge(new_edge: MIDIConsts.MIDINoteEdge | undefined, old_edge: MIDIConsts.MIDINoteEdge | undefined): boolean{
     if(new_edge != undefined){
       if(old_edge == undefined){
         return true;
@@ -419,14 +419,14 @@ export class MIDIGrid{
       const notes = this.notes.get(this.mouse_beat_float.id);
       const active_note = (notes != undefined && hovered_index != undefined) ? notes.get(hovered_index) : undefined;
       if(active_note != undefined){
-        active_note.state = NoteStateEnum.Hovered;
+        active_note.state = MIDIConsts.NoteStateEnum.Hovered;
         if(this.hovered_note != undefined && (this.hovered_note.beat !== active_note.beat || this.hovered_note.id !== active_note.id)){
-          this.hovered_note.state = NoteStateEnum.Default;
+          this.hovered_note.state = MIDIConsts.NoteStateEnum.Default;
         }
         this.hovered_note = active_note;
       }else{
         if(this.hovered_note != undefined){
-          this.hovered_note.state = NoteStateEnum.Default;
+          this.hovered_note.state = MIDIConsts.NoteStateEnum.Default;
         }
         this.hovered_note = undefined;
       }
@@ -590,17 +590,17 @@ export class MIDIGrid{
       }
 
       // adding note preview
-      if(this.edit_state == GridEditStateEnum.Adding){
+      if(this.edit_state == MIDIConsts.GridEditStateEnum.Adding){
         this.note_add_preview = {
           id: this.mouse_beat_float.id, beat: this.getSnapBeat(this.mouse_beat_float.beat_fl-(this.note_add_length*0.5), 0, this.note_snap), 
-          length: this.note_add_length, state: NoteStateEnum.Preview
+          length: this.note_add_length, state: MIDIConsts.NoteStateEnum.Preview
         };
       }else{
         this.note_add_preview = undefined;
       }
     }else{
       if(this.hovered_note != undefined){
-        this.hovered_note.state = NoteStateEnum.Default;
+        this.hovered_note.state = MIDIConsts.NoteStateEnum.Default;
       }
       this.hovered_note = undefined;
       this.note_add_preview = undefined;

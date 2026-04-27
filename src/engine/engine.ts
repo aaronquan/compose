@@ -1,7 +1,9 @@
 import * as WebGL from "./../WebGL/globals";
-import {MIDIGrid} from "./grid";
 
+//engine imports 
 import * as MIDIConsts from "./consts";
+import * as Composition from "./composition";
+import {MIDIGrid} from "./grid";
 
 // compose imports
 import * as Audio from "./../compose/audio";
@@ -12,6 +14,7 @@ import * as TextInput from "./../interface/components/text_input";
 import * as Options from "./../interface/components/options";
 import * as Button from "./../interface/components/button";
 import * as Slider from "./../interface/components/slider";
+
 
 type Int32 = number;
 type Float = number;
@@ -237,6 +240,15 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
           break;
       }
     };
+
+    const save_button = new Button.BasicButton(600, 160, 100, 25);
+    save_button.text = "Save";
+    save_button.onPressed = () => {
+      console.log("saving");
+      Composition.Save.serialiseComposition(this);
+    }
+    this.buttons.addButton(save_button);
+
 
   }
   playNote(note_tone: Note.RealNoteTone){

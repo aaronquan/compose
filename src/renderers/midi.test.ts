@@ -1,4 +1,4 @@
-import { MIDIGrid } from "./midi";
+import { MIDIGrid } from "./../engine/grid";
 import { expect, test } from 'vitest';
 
 
