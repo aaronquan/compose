@@ -1,4 +1,6 @@
+// webgl imports
 import * as WebGL from "./../WebGL/globals";
+import * as FileUtil from "./../WebGL/Util/file";
 
 //engine imports 
 import * as MIDIConsts from "./consts";
@@ -14,6 +16,9 @@ import * as TextInput from "./../interface/components/text_input";
 import * as Options from "./../interface/components/options";
 import * as Button from "./../interface/components/button";
 import * as Slider from "./../interface/components/slider";
+
+//utils imports
+import * as Download from "./../utils/download";
 
 
 type Int32 = number;
@@ -241,15 +246,36 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       }
     };
 
-    const save_button = new Button.BasicButton(600, 160, 100, 25);
+    const save_button = new Button.BasicButton(570, 120, 100, 25);
     save_button.text = "Save";
     save_button.onPressed = () => {
       console.log("saving");
-      Composition.Save.serialiseComposition(this);
+      const contents = Composition.Save.serialiseComposition(this);
+      console.log(contents);
+      Download.downloadTextFile("comp", contents);
+      //Download.downloadTextFile("hi", "hello world");
+
     }
     this.buttons.addButton(save_button);
 
+    const load_button = new Button.BasicButton(680, 120, 100, 25);
+    load_button.text = "Load";
+    load_button.onPressed = () => {
+      console.log("loading");
+      FileUtil.fetchPublicFile("comp.txt", 
+        (text) => {
+          console.log(text);
+          const engine_save = Composition.Save.deserialiseComposition(text);
+          this.load(engine_save);
+        },
+        (e) => {
+          console.log(e);
+          console.log("comp.txt not here");
+        }
+      );
+    }
 
+    this.buttons.addButton(load_button);
   }
   playNote(note_tone: Note.RealNoteTone){
     console.log("playing note "+note_tone.toString());
@@ -411,5 +437,10 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       this.note_snap_options.onMouseUp();
       this.note_add_options.onMouseUp();
     }
+  }
+  load(save: MIDIConsts.EngineSave){
+    this.min_id = save.min_id;
+    this.max_id = save.max_id;
+    this.grid.notes = save.notes;
   }
 }

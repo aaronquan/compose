@@ -60,8 +60,8 @@ const vert_test = Matrix.TransformationMatrix3x3.identity();
 //module.trans
 
 export function MIDIView(props: MIDIViewProps){
-  const w = 800;
-  const h = 800;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
   const starting_octave = useRef(0);
   const canvas = useRef<HTMLCanvasElement>(null);
   const piano_renderer = useRef<PianoRenderer.StaticPianoRenderer | undefined>();
