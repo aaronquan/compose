@@ -1,0 +1,3 @@
+save composition; workout format for saving file - finished simple save
+add wave visualisation - todo
+add wave gain changer in note - todo

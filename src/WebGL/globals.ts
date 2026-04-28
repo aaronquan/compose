@@ -5,8 +5,8 @@ import * as Shader from "./Shaders/custom";
 
 import * as Shapes from "./Shapes/Shapes"
 import * as Matrix from "./Matrix/matrix";
-import * as Line from "./Shapes/Line"
-import * as Colour from "./colour"
+import * as Line from "./Shapes/Line";
+import * as Colour from "./colour";
 import * as Texture from "./Texture/texture"
 
 type Float = number;
@@ -17,9 +17,11 @@ export * as Shapes from "./Shapes/Shapes";
 export * as Matrix from "./Matrix/matrix";
 export * as Texture from "./Texture/texture";
 export * as Line from "./Shapes/Line";
-export * as Shader from "./Shaders/custom"
+export * as Shader from "./Shaders/custom";
 export * as App from "./app";
 
+
+type VoidFunction = () => void;
 
 export class WebGL{
   static gl: WebGL2RenderingContext | null;
@@ -31,6 +33,7 @@ export class WebGL{
   }
   static initialise(canvas: HTMLCanvasElement){
     this.gl = canvas.getContext("webgl2", {alpha: false});
+    this.resetViewport(canvas);
     if(this.gl && !this.initialised){
       loadVertexShaders();
       loadFragmentShaders();
@@ -39,55 +42,45 @@ export class WebGL{
     }
   }
 
+  static resetViewport(canvas: HTMLCanvasElement){
+    this.gl!.viewport(0, 0, canvas.width, canvas.height);
+  }
+
   static rectangleModel(x: Float, y: Float, width: number, height: number): Matrix.TransformationMatrix3x3{
     let model = Matrix.TransformationMatrix3x3.translate(x, y);
-    model = model.multiplyCopy(Matrix.TransformationMatrix3x3.scale(width, height));
+    model.scale(width, height);
     return model;
   }
   static lineModel(x1: Float, y1: Float, x2: Float, y2: Float, lt: Float){
     const line = new Line.Line(x1, y1, x2, y2);
 
     let model = Matrix.TransformationMatrix3x3.identity();
-    //let model = Matrix.TransformationMatrix3x3.translate(0.5, 0);
-    //model = model.multiplyCopy(Matrix.TransformationMatrix3x3.rotate(line.angleInRadians()-Math.PI/2));
-    model = model.multiplyCopy(Matrix.TransformationMatrix3x3.translate(x1, y1));
-    model = model.multiplyCopy(Matrix.TransformationMatrix3x3.rotate(line.angleInRadians()));
-    model = model.multiplyCopy(Matrix.TransformationMatrix3x3.scale(line.length(), lt));
-    model = model.multiplyCopy(Matrix.TransformationMatrix3x3.translate(0.5, 0));
+    model.translate(x1, y1);
+    model.rotate(-line.angleInRadians());
+    model.scale(line.length(), lt);
+    model.translate(0, -0.5);
     
     return model;
   }
-
-  //static drawBasicModel(tm: Matrix.TransformationMatrix3x3): BasicModelItem[]{
-
-  //}
 }
-
-type BasicModelType = "Rect" | "Line";
 
 
 //can only draw rects
 export class BasicModel{
   static colour_shader: Shader.MVPColourProgram;
+
   static init(){
     this.colour_shader = new Shader.MVPColourProgram();
   }
+
   parts: BasicModelItem2D[];
   constructor(){
     this.parts = [];
-  }
-  colourAll(colour: Colour.ColourRGB){
-    for(const part of this.parts){
-      part.colour = colour;
-    }
   }
   addPart(part: BasicModelItem2D){
     this.parts.push(part);
   }
   draw(p: Matrix.TransformationMatrix3x3){
-    if(BasicModel.colour_shader == undefined){
-      BasicModel.init();
-    }
     const shader = BasicModel.colour_shader;
     shader.use();
     for(const model of this.parts){
@@ -113,15 +106,11 @@ export type BasicModelItem2D = {
   transformation: Matrix.TransformationMatrix3x3;
 }
 
+
 export function testBasicModel(){
   const pers = Matrix.TransformationMatrix3x3.orthographic(0, 10, 10, 0);
-  const view = Matrix.TransformationMatrix3x3.identity();
-  view.multiply(Matrix.TransformationMatrix3x3.translate(1, 1));
-
-  const vp = pers.multiplyCopy(view);
   const s1 = WebGL.rectangleModel(0, 0, 5, 5);
   const s2 = WebGL.rectangleModel(5, 5, 5, 5);
-  console.log(vp);
   const bm = new BasicModel();
   BasicModel.init();
 
@@ -135,7 +124,10 @@ export function testBasicModel(){
   const s4 = WebGL.rectangleModel(5,3, 2, 2);
   bm.addPart({colour: blue, transformation: s3});
   bm.addPart({colour: blue, transformation: s4});
+
+
   bm.draw(pers);
+  //Shapes.Quad.draw();
 }
 
 export class FontLoader{
@@ -151,9 +143,11 @@ export class FontLoader{
     this.to_load = [];
     this.finished_loading = 0;
   }
-  addFont(name: string){
+  addFont(name: string): boolean{
+    if(this.loading) return false;
     const font = new Texture.CustomFont(name);
     this.fonts.set(name, font);
+    return true;
   }
   loadFonts(onAllLoaded: () => void) {
     function finishLoading(fl: FontLoader){
@@ -164,7 +158,7 @@ export class FontLoader{
       }
     }
     if(!this.loading){
-      console.log("start loading fonts ")
+      console.log("start loading fonts");
       this.loading = true;
       this.to_load = [];
       for(const [name, font] of this.fonts){
@@ -173,6 +167,7 @@ export class FontLoader{
       console.log(this.to_load);
 
       for(const font of this.to_load){
+        console.log(font);
         font.load(() => {
           this.loaded++;
           this.finished_loading++;
@@ -187,7 +182,6 @@ export class FontLoader{
       }
     }
   }
-
   getFont(name: string): Texture.CustomFont | undefined{
     return this.fonts.get(name);
   }
@@ -205,7 +199,6 @@ export class TextDrawer{
     this.font = font;
   }
   loadFont(onLoaded:()=>void=()=>{}){
-    
   }
 
   drawTextModelColour(mat: Matrix.TransformationMatrix3x3, text: string, size: Float, colour: Colour.ColourRGB){
@@ -299,7 +292,6 @@ export class TextDrawer{
       throw "TextDrawer: No font set";
     }
   }
-
   //expects that all characters are of same width
   getTextWidth(text: string, size: Float): Float{
     return text.length*size;

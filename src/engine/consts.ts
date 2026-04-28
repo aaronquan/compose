@@ -1,3 +1,5 @@
+import * as ArrayUtils from "./../utils/array";
+
 type Int32 = number;
 type Float = number;
 
@@ -45,4 +47,10 @@ export type NoteIdFloat = {
 
 export function MIDINoteCmp(n1: MIDINote, n2: MIDINote): Int32{
   return n1.beat - n2.beat;
+}
+
+export type EngineSave = {
+  min_id: Int32,
+  max_id: Int32,
+  notes: Map<Int32, ArrayUtils.SortedArray<MIDINote>>
 }

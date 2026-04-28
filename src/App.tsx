@@ -29,22 +29,20 @@ function App() {
 
   return (
     <>
-      <div>
-        {<MIDIView start_id={5} end_id={10} audio_context={audio_context.current}/>}
-        {/*<>
-        <RhythmTester audio_context={audio_context.current}/>
-        <PianoKeys audio_context={audio_context.current}/>
-        <MIDIKeyboardVisuals audio_context={audio_context.current}/>
-        <TempoSetter audio_context={audio_context.current} onTempoChange={testTempoChange}/></>*/}
-        {/*ss
-        <MIDITester audio_context={audio_context.current}/>
-        /*<PianoView white_keys={29} starting_note={Note.C} audio_context={audio_context.current}/>*/}
-        {/*
-        <ComposeWorkspace/>
-        <SineGenerator/>
-        <PianoKeys/>
-        */}
-      </div>
+      {<MIDIView start_id={5} end_id={10} audio_context={audio_context.current}/>}
+      {/*<>
+      <RhythmTester audio_context={audio_context.current}/>
+      <PianoKeys audio_context={audio_context.current}/>
+      <MIDIKeyboardVisuals audio_context={audio_context.current}/>
+      <TempoSetter audio_context={audio_context.current} onTempoChange={testTempoChange}/></>*/}
+      {/*ss
+      <MIDITester audio_context={audio_context.current}/>
+      /*<PianoView white_keys={29} starting_note={Note.C} audio_context={audio_context.current}/>*/}
+      {/*
+      <ComposeWorkspace/>
+      <SineGenerator/>
+      <PianoKeys/>
+      */}
     </>
   )
 }
