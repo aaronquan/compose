@@ -77,10 +77,18 @@ export class BasicModel{
   constructor(){
     this.parts = [];
   }
+  colourAll(colour: Colour.ColourRGB){
+    for(const part of this.parts){
+      part.colour = colour;
+    }
+  }
   addPart(part: BasicModelItem2D){
     this.parts.push(part);
   }
   draw(p: Matrix.TransformationMatrix3x3){
+    if(BasicModel.colour_shader == undefined){
+      BasicModel.init();
+    }
     const shader = BasicModel.colour_shader;
     shader.use();
     for(const model of this.parts){
