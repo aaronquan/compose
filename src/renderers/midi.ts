@@ -394,6 +394,8 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     engine.note_snap_options.draw(vp, this.colour_shader, this.text_drawer);
     engine.note_add_options.draw(vp, this.colour_shader, this.text_drawer);
 
+    engine.wave_window.draw(vp, this.colour_shader);
+
     if(engine.grid.hovered_note != undefined){
       this.drawNoteDetails(engine, engine.grid.hovered_note);
     }

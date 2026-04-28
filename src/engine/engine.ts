@@ -14,6 +14,7 @@ import * as TextInput from "./../interface/components/text_input";
 import * as Options from "./../interface/components/options";
 import * as Button from "./../interface/components/button";
 import * as Slider from "./../interface/components/slider";
+import * as InternalWindow from "./../interface/components/internal_window";
 
 
 type Int32 = number;
@@ -74,6 +75,8 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
 
   note_snap_options: Options.SingleSelectOptions;
   note_add_options: Options.SingleSelectOptions;
+
+  wave_window: InternalWindow.InternalWindow;
 
   constructor(width: Int32, height: Int32, canvas: HTMLCanvasElement, audio_context: AudioContext){
     super();
@@ -249,7 +252,8 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     }
     this.buttons.addButton(save_button);
 
-
+    this.wave_window = new InternalWindow.InternalWindow(0, 0, 80, 80);
+    //this.wave_window.visible = false;
   }
   playNote(note_tone: Note.RealNoteTone){
     console.log("playing note "+note_tone.toString());
@@ -386,6 +390,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     this.bpm_text_input.onMouseMove(canvas_point);
     this.note_snap_options.onMouseMove(canvas_point);
     this.note_add_options.onMouseMove(canvas_point);
+    this.wave_window.mouseMove(canvas_point);
   }
   protected handleMouseDown(ev: MouseEvent): void {
     //console.log("click");
@@ -398,6 +403,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       this.bpm_text_input.onMouseDown(this.canvas_mouse);
       this.note_snap_options.onMouseDown();
       this.note_add_options.onMouseDown();
+      this.wave_window.mouseDown(this.canvas_mouse);
     }
   }
   protected handleMouseUp(ev: MouseEvent): void {
@@ -410,6 +416,8 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
       this.bpm_text_input.onMouseUp();
       this.note_snap_options.onMouseUp();
       this.note_add_options.onMouseUp();
+
+      this.wave_window.mouseUp();
     }
   }
 }
