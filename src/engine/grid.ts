@@ -101,7 +101,7 @@ export class MIDIGrid{
   constructor(w: Int32, h: Int32){
     this.beat_width = 100;
     this.beat_gap = 0;
-    this.beat_height = 30;
+    this.beat_height = 25;
     this.top_left = new WebGL.Matrix.Point2D(50, 50);
     this.width = w;
     this.height = h;
@@ -110,7 +110,7 @@ export class MIDIGrid{
 
     this.mouse_beat_float = undefined;
 
-    this.max_display_height = 800;
+    this.max_display_height = 700;
     this.max_display_width = 500;
 
     this.scroll_height = 20;
@@ -591,8 +591,14 @@ export class MIDIGrid{
 
       // adding note preview
       if(this.edit_state == MIDIConsts.GridEditStateEnum.Adding){
+        let beat = this.getSnapBeat(this.mouse_beat_float.beat_fl-(this.note_add_length*0.5), 0, this.note_snap);
+        if(beat < 0){
+          beat = 0;
+        }else if(beat+this.note_add_length > this.width){
+          beat = this.width - this.note_add_length;
+        }
         this.note_add_preview = {
-          id: this.mouse_beat_float.id, beat: this.getSnapBeat(this.mouse_beat_float.beat_fl-(this.note_add_length*0.5), 0, this.note_snap), 
+          id: this.mouse_beat_float.id, beat, 
           length: this.note_add_length, state: MIDIConsts.NoteStateEnum.Preview
         };
       }else{

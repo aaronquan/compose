@@ -351,3 +351,27 @@ export class SingleNoteOscillatorPlayer{
     }
   }
 }
+
+export class VisualisationTest{
+  osc1: OscillatorNode;
+  context: AudioContext;
+  analyser: AnalyserNode;
+  constructor(ctx: AudioContext){
+    this.context = ctx;
+    this.osc1 = this.context.createOscillator();
+    this.osc1.frequency.setValueAtTime(440, this.context.currentTime);
+    //this.osc1.connect(this.context.destination);
+    //this.osc1.start();
+
+    this.analyser = this.context.createAnalyser();
+    this.analyser.fftSize = 2048;
+
+    this.analyser.connect(this.context.destination);
+  }
+  analyse(){
+    const data = new Uint8Array(this.analyser.fftSize);
+
+    this.analyser.getByteTimeDomainData(data);
+    console.log(data);
+  }
+}

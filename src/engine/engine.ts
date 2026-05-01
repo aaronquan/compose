@@ -83,6 +83,8 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
 
   wave_window: InternalWindow.InternalWindow;
 
+  analyser: Audio.VisualisationTest;
+
   constructor(width: Int32, height: Int32, canvas: HTMLCanvasElement, audio_context: AudioContext){
     super();
     this.bars = 2;
@@ -281,6 +283,15 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     }
 
     this.buttons.addButton(load_button);
+
+    this.analyser = new Audio.VisualisationTest(audio_context);
+
+    const analyse_button = new Button.BasicButton(570, 90, 60, 25);
+    analyse_button.text = "a";
+    analyse_button.onPressed = () => {
+      this.analyser.analyse();
+    }
+    this.buttons.addButton(analyse_button);
   }
   playNote(note_tone: Note.RealNoteTone){
     console.log("playing note "+note_tone.toString());
