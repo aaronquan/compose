@@ -49,8 +49,15 @@ export function MIDINoteCmp(n1: MIDINote, n2: MIDINote): Int32{
   return n1.beat - n2.beat;
 }
 
-export type EngineSave = {
+export type EngineHeader = {
   min_id: Int32,
   max_id: Int32,
-  notes: Map<Int32, ArrayUtils.SortedArray<MIDINote>>
+  bpm: Float,
+  beats_per_bar: Int32,
+  bars: Int32,
+}
+
+export type EngineSave = {
+  header: EngineHeader;
+  notes: Map<Int32, ArrayUtils.SortedArray<MIDINote>>;
 }

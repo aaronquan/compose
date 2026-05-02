@@ -459,8 +459,12 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     }
   }
   load(save: MIDIConsts.EngineSave){
-    this.min_id = save.min_id;
-    this.max_id = save.max_id;
+    Object.assign(this, save.header);
+    //this.min_id = save.min_id;
+    //this.max_id = save.max_id;
+    //this.beats_per_bar = save.beats_per_bar;
+    //this.bpm = save.bpm;
+
     this.grid.notes = save.notes;
   }
 }
