@@ -422,10 +422,6 @@ export function PianoCanvas(props: PianoCanvasProps){
           ctx.fillRect(x, 0, props.key_width, props.key_height);
         }
       }
-      //for(let i = 0; )
-      //ctx.moveTo
-      //const black_key_height = props.black_key_height_ratio*props.key_height;
-      //const black_key_width = props.black_key_width_ratio*props.key_width;
       for(let i = 0; i < props.white_keys; i++){
         const has_black_key = i !== 0 && black_keys[(i+(props.starting_note ? props.starting_note.valueOf() : 0))%black_keys.length];
         if(has_black_key){
@@ -444,11 +440,6 @@ export function PianoCanvas(props: PianoCanvasProps){
           ctx.stroke();
         }
       }
-      //can't remember what i was doing?
-      ctx.fillStyle = "grey";
-      ctx.beginPath();
-
-      //ctx.moveTo();
 
       requestAnimationFrame(draw);  
     }

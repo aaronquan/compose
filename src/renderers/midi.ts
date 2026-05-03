@@ -438,4 +438,9 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     }
 
   }
+  drawWaveVisualisation(engine: MIDIEngine){
+    if(engine.wave_window.visible){
+      const width = engine.wave_window.width;
+    }
+  }
 }
