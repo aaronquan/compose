@@ -146,11 +146,22 @@ export class OscillatorCollectionSameGain{
 
   constant_source_node: ConstantSourceNode;
 
+  merged_node: ChannelMergerNode;
+
+
   constructor(audio_context: AudioContext){
     this.audio_context = audio_context;
     this.active_oscillators = new Map();
     this.constant_source_node = audio_context.createConstantSource();
     this.constant_source_node.start();
+
+    this.merged_node = audio_context.createChannelMerger();
+  }
+  merge(){
+    for(const [id, osc] of this.active_oscillators){
+      osc.oscillator.connect(this.merged_node);
+    }
+    this.merged_node.connect(this.audio_context.destination);
   }
   setVolume(v: Float){
     this.constant_source_node.offset.value = v;
@@ -158,9 +169,11 @@ export class OscillatorCollectionSameGain{
   }
   play(freq: Float){
     if(this.active_oscillators.has(freq)) return;
+    console.log(freq);
     const osc = new TempOscillator(this.audio_context);
     osc.connectGainSource(this.constant_source_node);
     osc.play(freq);
+    osc.connectOutput(this.merged_node);
     //console.log(osc.gain);
     this.active_oscillators.set(freq, osc);
   }
@@ -188,6 +201,10 @@ export class TempOscillator{
   }
   setGain(value:number){
     this.gain.gain.setValueAtTime(value, this.audio_context.currentTime);
+  }
+  connectOutput(node: AudioNode){
+    this.gain.disconnect();
+    this.gain.connect(node);
   }
   play(freq: Float){
     this.oscillator.type = "sine";
@@ -356,6 +373,7 @@ export class VisualisationTest{
   osc1: OscillatorNode;
   context: AudioContext;
   analyser: AnalyserNode;
+  source: AudioNode | undefined;
   constructor(ctx: AudioContext){
     this.context = ctx;
     this.osc1 = this.context.createOscillator();
@@ -366,12 +384,28 @@ export class VisualisationTest{
     this.analyser = this.context.createAnalyser();
     this.analyser.fftSize = 2048;
 
+    this.osc1.connect(this.analyser);
+    //this.analyser.connect(this.context.destination);
+
     this.analyser.connect(this.context.destination);
   }
-  analyse(){
+  addSource(node: AudioNode){
+    this.source = node;
+    this.source.connect(this.analyser);
+  }
+  start(){
+    this.osc1.start();
+    console.log("s?");
+  }
+  analyse() : Uint8Array | undefined{
+    if(this.source == undefined){
+      //console.log("no source");
+      return;
+    }
     const data = new Uint8Array(this.analyser.fftSize);
-
+    //this.context.createMediaStreamSource();
     this.analyser.getByteTimeDomainData(data);
-    console.log(data);
+    //console.log(data);
+    return data;
   }
 }

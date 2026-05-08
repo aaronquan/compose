@@ -289,9 +289,14 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     const analyse_button = new Button.BasicButton(570, 90, 60, 25);
     analyse_button.text = "a";
     analyse_button.onPressed = () => {
-      this.analyser.analyse();
+      this.analyser.start();
+      const data = this.analyser.analyse();
+      //console.log(this.analyser.)
     }
     this.buttons.addButton(analyse_button);
+
+    //connecting osc collection to analyser
+    this.analyser.addSource(this.sound_generator_same_volume.merged_node);
   }
   playNote(note_tone: Note.RealNoteTone){
     console.log("playing note "+note_tone.toString());
@@ -330,7 +335,7 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
           curr_note.state = MIDIConsts.NoteStateEnum.Playing;
           this.current_playing_notes.set(note_tone_id, curr_note);
 
-          if(!this.sound_generator.active_oscillators.has(note_tone_id)){
+          if(!this.sound_generator_same_volume.active_oscillators.has(note_tone_id)){
             this.playNote(note_tone);
           }
         }

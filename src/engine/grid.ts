@@ -168,13 +168,15 @@ export class MIDIGrid{
         }
       }else if(this.edit_state == MIDIConsts.GridEditStateEnum.Deleting){
         //deleting
-        const index = this.getHoveredNoteIndex()!;
-        const notes = this.notes.get(this.hovered_note!.id);
-        if(notes != undefined){
-          notes.remove(index);
+        if(this.hovered_note != undefined){
+          const index = this.getHoveredNoteIndex()!;
+          const notes = this.notes.get(this.hovered_note!.id);
+          if(notes != undefined){
+            notes.remove(index);
+          }
+          console.log("removing");
+          this.hovered_note = undefined;
         }
-        console.log("removing");
-        this.hovered_note = undefined;
 
       }else{
         if(this.mouse_beat_float != undefined){

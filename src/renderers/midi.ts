@@ -400,6 +400,7 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
       this.drawNoteDetails(engine, engine.grid.hovered_note);
     }
     this.engineDetails(engine);
+    this.drawWaveVisualisation(engine);
   }
   drawNoteEdge(engine: MIDIEngine, edge: MIDINoteEdge, x: Float, y: Float, colour: WebGL.Colour.ColourRGB){
     const beat_width = engine.grid.beat_width;
@@ -426,7 +427,7 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
     const ts = 8;
     if(engine.canvas_mouse != undefined){
       const bottom_line = engine.height-ts;
-      const mouse_text = `x ${engine.canvas_mouse.x}, y ${engine.canvas_mouse.y}`
+      const mouse_text = `x ${engine.canvas_mouse.x}, y ${engine.canvas_mouse.y}`;
       const tw = this.text_drawer.getTextWidth(mouse_text, ts);
       const x = engine.width - tw;
       this.text_drawer.drawTextColour(engine.vp, x, bottom_line, mouse_text, ts, this.text_colour);
@@ -441,6 +442,35 @@ export class MIDIRenderer implements WebGL.App.IEngineRenderer<MIDIEngine>{
   drawWaveVisualisation(engine: MIDIEngine){
     if(engine.wave_window.visible){
       const width = engine.wave_window.width;
+      const height = engine.wave_window.height;
+      //engine.
+      const data = engine.analyser.analyse();
+      if(data == undefined) return;
+      const inc = width/data.length;
+      let x = engine.wave_window.x;
+      for(let i = 0; i+1 < data.length; i++){
+        const y1 = engine.wave_window.getInternalY() + (data[i] / 128.0)*(height/2);
+        const y2 = engine.wave_window.getInternalY() + (data[i+1] / 128.0)*(height/2);
+        const l_model = WebGL.WebGL.lineModel(x, y1, x+inc, y2, 1); 
+        engine.wave_window.x+engine.wave_window.width, 
+        this.colour_shader.use();
+        this.colour_shader.setMvp(engine.vp.multiplyCopy(l_model));
+        this.colour_shader.setColourFromColourRGB(WebGL.Colour.ColourUtils.red());
+        WebGL.Shapes.Quad.draw();
+        //console.log(y1);
+        x += inc;
+      }
+      
+
+      //testing line
+      /*
+      const l_model = WebGL.WebGL.lineModel(engine.wave_window.x, engine.wave_window.getInternalY(), 
+        engine.wave_window.x+engine.wave_window.width, 
+        engine.wave_window.getInternalY()+engine.wave_window.height, 3);
+      this.colour_shader.use();
+      this.colour_shader.setMvp(engine.vp.multiplyCopy(l_model));
+      this.colour_shader.setColourFromColourRGB(this.drag_note_colour);
+      WebGL.Shapes.Quad.draw();*/
     }
   }
 }
