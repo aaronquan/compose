@@ -263,7 +263,23 @@ export class MIDIEngine extends WebGL.App.BaseEngine{
     }
     this.buttons.addButton(save_button);
 
-    this.wave_window = new InternalWindow.InternalWindow(0, 0, 80, 80);
+    this.wave_window = new InternalWindow.InternalWindow(200, 200, 150, 150);
+    this.wave_window.visible = false;
+
+    const open_wave_button = new Button.ToggleButton(700, 250, 150, 15);
+    open_wave_button.off_text = "Open Wave";
+    open_wave_button.on_text = "Close Wave";
+    open_wave_button.onToggleOn = () => {
+      this.wave_window.visible = true;
+    }
+    open_wave_button.onToggleOff = () => {
+      this.wave_window.visible = false;
+    }
+
+    this.wave_window.onClose = () => {
+      open_wave_button.toggleOff();
+    }
+    this.toggle_buttons.addButton(open_wave_button);
 
     const load_button = new Button.BasicButton(680, 120, 100, 25);
     load_button.text = "Load";

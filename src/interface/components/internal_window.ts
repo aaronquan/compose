@@ -2,6 +2,8 @@ import * as WebGL from "./../../WebGL/globals";
 
 type Int32 = number;
 type Float = number;
+type VoidFunction = () => void;
+const EmptyFunction = () => {};
 
 export class InternalWindow{
   x: Int32;
@@ -16,6 +18,8 @@ export class InternalWindow{
 
   can_close: boolean;
   visible: boolean;
+  
+  onClose: VoidFunction;
   constructor(x: Int32, y: Int32, width: Int32, height: Int32){
     this.x = x;
     this.y = y;
@@ -28,6 +32,7 @@ export class InternalWindow{
     this.header_offset_y = 0;
     this.can_close = true;
     this.visible = true;
+    this.onClose = EmptyFunction;
   }
   getInternalY(): Int32{ // where the internal window starts
     return this.y+this.header_height;
@@ -56,6 +61,7 @@ export class InternalWindow{
   mouseDown(global_position: WebGL.Matrix.Point2D){
     if(this.isInsideClose(global_position)){
       this.visible = false;
+      this.onClose();
     }
     if(this.hover_header){
       this.dragged_header = true;
