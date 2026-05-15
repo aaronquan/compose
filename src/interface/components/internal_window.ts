@@ -1,4 +1,4 @@
-import * as WebGL from "./../../WebGL/globals";
+import { WebGL } from "webglmusti";
 
 type Int32 = number;
 type Float = number;

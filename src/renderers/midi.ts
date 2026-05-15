@@ -1,6 +1,8 @@
 
-import * as WebGL from "./../WebGL/globals";
+//import * as WebGL from "./../WebGL/globals";
 import * as IntervalUtils from "./../utils/interval";
+
+import { WebGL } from "webglmusti";
 
 import { MIDIEngine } from "../engine/engine";
 

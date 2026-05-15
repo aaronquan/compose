@@ -1,5 +1,6 @@
 
-import * as WebGL from "./../../WebGL/globals";
+//import * as WebGL from "./../../WebGL/globals";
+import { WebGL } from "webglmusti";
 import * as ArrayUtils from "./../../utils/array";
 
 type Int32 = number;

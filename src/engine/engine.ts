@@ -1,5 +1,6 @@
 // webgl imports
-import * as WebGL from "./../WebGL/globals";
+//import * as WebGL from "./../WebGL/globals";
+import { WebGL } from "webglmusti";
 import * as FileUtil from "./../WebGL/Util/file";
 
 //engine imports 

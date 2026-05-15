@@ -1,10 +1,14 @@
 import { PianoDrawProps, VisualNoteFind } from "../interface/PianoView";
+
+import { WebGL } from "webglmusti";
+/*
 import * as WebGL from "./../WebGL/globals";
 import * as Shapes from "./../WebGL/Shapes/Shapes";
 import * as Shader from "./../WebGL/Shaders/custom";
 import * as Matrix from "./../WebGL/Matrix/matrix";
+*/
 import * as Note from "../compose/note";
-import * as Colour from "./../WebGL/colour";
+//import * as Colour from "./../WebGL/colour";
 
 type Float = number;
 
@@ -23,11 +27,11 @@ export class PianoState{
 }
 
 export class PianoRenderer{
-  colour_shader: Shader.MVPColourProgram;
-  vp: Matrix.TransformationMatrix3x3;
+  colour_shader: WebGL.Shader.MVPColourProgram;
+  vp: WebGL.Matrix.TransformationMatrix3x3;
   constructor(width: number, height: number){
-    this.colour_shader = new Shader.MVPColourProgram();
-    this.vp = Matrix.TransformationMatrix3x3.orthographic(0, width, height, 0);
+    this.colour_shader = new WebGL.Shader.MVPColourProgram();
+    this.vp = WebGL.Matrix.TransformationMatrix3x3.orthographic(0, width, height, 0);
   }
   draw(props: PianoDrawInteractiveProps, piano_state: PianoState){
     const gl = WebGL.WebGL;
@@ -37,12 +41,12 @@ export class PianoRenderer{
     //white key block
     const block_width = props.key_width*props.white_keys;
     const block_height = props.key_height;
-    const w_block_model = Matrix.TransformationMatrix3x3.scale(block_width, block_height);
+    const w_block_model = WebGL.Matrix.TransformationMatrix3x3.scale(block_width, block_height);
     const mvp = vp.multiplyCopy(w_block_model);
     shader.use();
     shader.setMvp(mvp);
     shader.setColour(1.0, 1.0, 1.0);
-    Shapes.Quad.draw();
+    WebGL.Shapes.Quad.draw();
 
     //const mo = props.mouse_over;
     const mo = piano_state.mouse_over;
@@ -54,13 +58,13 @@ export class PianoRenderer{
       shader.setColour(0, 1, 0);
       const model = gl.rectangleModel(x, 0, props.key_width, props.key_height);
       shader.setMvp(vp.multiplyCopy(model));
-      Shapes.Quad.draw();
+      WebGL.Shapes.Quad.draw();
     }else if(mo && !mo.visual_note.is_black){
       const x = mo.visual_note.id*props.key_width;
       shader.setColour(1, 0, 0);
       const model = gl.rectangleModel(x, 0, props.key_width, props.key_height);
       shader.setMvp(vp.multiplyCopy(model));
-      Shapes.Quad.draw();
+      WebGL.Shapes.Quad.draw();
     }
 
     //midi white keys
@@ -70,7 +74,7 @@ export class PianoRenderer{
         const x = props.key_width*i;
         const model = gl.rectangleModel(x, 0, props.key_width, props.key_height);
         shader.setMvp(vp.multiplyCopy(model));
-        Shapes.Quad.draw();
+        WebGL.Shapes.Quad.draw();
       }
     }
 
@@ -83,7 +87,7 @@ export class PianoRenderer{
         const x = props.key_width*i-half_line_thickness;
         const model = gl.rectangleModel(x, 0, line_thickness, props.key_height);
         shader.setMvp(vp.multiplyCopy(model));
-        Shapes.Quad.draw();
+        WebGL.Shapes.Quad.draw();
     }
 
     //draw black keys
@@ -105,7 +109,7 @@ export class PianoRenderer{
         const x = i*props.key_width-(black_key_width/2);
         const model = gl.rectangleModel(x, 0, black_key_width, black_key_height);
         shader.setMvp(vp.multiplyCopy(model));
-        Shapes.Quad.draw();
+        WebGL.Shapes.Quad.draw();
       }
     }
 
@@ -136,7 +140,7 @@ type StaticPianoDrawProps = {
 
 type ActiveKey = {
   id: Int32,
-  colour: Colour.ColourRGB
+  colour: WebGL.Colour.ColourRGB
 }
 
 export class BasePianoModel{
@@ -153,7 +157,7 @@ export class BasePianoModel{
   black_key_lines: WebGL.BasicModel[];
 
   white_key_highlight_models: WebGL.BasicModel;
-  active_white_keys: Map<Int32, Colour.ColourRGB>;
+  active_white_keys: Map<Int32, WebGL.Colour.ColourRGB>;
   active_black_keys: Set<Int32>;
 
   horizontal_lines: WebGL.BasicModel;
@@ -180,24 +184,24 @@ export class BasePianoModel{
 
   clearBlacks(){
     for(const id of this.active_black_keys){
-      this.black_key_fills[id].colourAll(Colour.ColourUtils.black());
+      this.black_key_fills[id].colourAll(WebGL.Colour.ColourUtils.black());
     }
     this.active_black_keys.clear();
   }
 
   setBlackKey(id: Int32){
     this.active_black_keys.add(id);
-    this.black_key_fills[id].colourAll(Colour.ColourUtils.cyan());
+    this.black_key_fills[id].colourAll(WebGL.Colour.ColourUtils.cyan());
   }
 
   setWhiteKey(id: Int32){
-    this.active_white_keys.set(id, Colour.ColourUtils.cyan());
+    this.active_white_keys.set(id, WebGL.Colour.ColourUtils.cyan());
   }
   removeActiveWhiteKey(id: Int32){
     this.active_white_keys.delete(id);
   }
 
-  draw(vp: Matrix.TransformationMatrix3x3){
+  draw(vp: WebGL.Matrix.TransformationMatrix3x3){
     console.log(this.bg);
     WebGL.BasicModel.drawItem(vp, this.bg);
     for(const [id, colour] of this.active_white_keys){
@@ -221,13 +225,13 @@ export class BasePianoModel{
 export class PianoModelGenerator{
   static modelTest(){
     const piano_model = PianoModelGenerator.generateModel(28, Note.Note.A);
-    const vp = Matrix.TransformationMatrix3x3.orthographic(0, 1, 1, 0);
+    const vp = WebGL.Matrix.TransformationMatrix3x3.orthographic(0, 1, 1, 0);
     //piano_model.model.draw(vp);
   }
 
   static modelTest2(){
     const piano_model = PianoModelGenerator.generateModel(28, Note.Note.A);
-    const vp = Matrix.TransformationMatrix3x3.orthographic(0, 1, 1, 0);
+    const vp = WebGL.Matrix.TransformationMatrix3x3.orthographic(0, 1, 1, 0);
     piano_model.draw(vp);
   }
 
@@ -242,12 +246,12 @@ export class PianoModelGenerator{
     const model = new WebGL.BasicModel();
     //model is drawn in order also replace type with proper type
     const block = WebGL.WebGL.rectangleModel(0, 0, 1, 1);
-    const white = Colour.ColourUtils.white();
-    const black = Colour.ColourUtils.black();
-    const grey = Colour.ColourUtils.fromRGB(0.5, 0.5, 0.5);
-    const red = Colour.ColourUtils.red();
-    const blue = Colour.ColourUtils.blue();
-    const green = Colour.ColourUtils.green();
+    const white = WebGL.Colour.ColourUtils.white();
+    const black = WebGL.Colour.ColourUtils.black();
+    const grey = WebGL.Colour.ColourUtils.fromRGB(0.5, 0.5, 0.5);
+    const red = WebGL.Colour.ColourUtils.red();
+    const blue = WebGL.Colour.ColourUtils.blue();
+    const green = WebGL.Colour.ColourUtils.green();
     //model.push({white, model: block});
     model.addPart({colour: white, transformation: block});
     piano_model.bg = {colour: white, transformation: block};
@@ -341,11 +345,11 @@ export class PianoModelGenerator{
 }
 
 export class StaticPianoRenderer{
-  colour_shader: Shader.MVPColourProgram;
-  vp: Matrix.TransformationMatrix3x3;
+  colour_shader: WebGL.Shader.MVPColourProgram;
+  vp: WebGL.Matrix.TransformationMatrix3x3;
   constructor(width: number, height: number){
-    this.vp = Matrix.TransformationMatrix3x3.orthographic(0, width, height, 0);
-    this.colour_shader = new Shader.MVPColourProgram();
+    this.vp = WebGL.Matrix.TransformationMatrix3x3.orthographic(0, width, height, 0);
+    this.colour_shader = new WebGL.Shader.MVPColourProgram();
   }
   draw(props: StaticPianoDrawProps){
     const gl = WebGL.WebGL;
@@ -358,7 +362,7 @@ export class StaticPianoRenderer{
     this.colour_shader.setColour(1, 1, 1);
     const block_model = gl.rectangleModel(props.x, props.y, block_width, block_height);
     this.colour_shader.setMvp(this.vp.multiplyCopy(block_model));
-    Shapes.Quad.draw();
+    WebGL.Shapes.Quad.draw();
 
   }
 }

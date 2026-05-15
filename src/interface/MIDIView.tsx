@@ -1,14 +1,16 @@
 
 import { useRef, useEffect, useState, MouseEvent } from "react";
 
-import WebGL from "./../WebGL/globals";
+//import WebGL from "./../WebGL/globals";
+import { WebGL } from "webglmusti";
+/*
 import * as Shapes from "./../WebGL/Shapes/Shapes";
 import * as Shader from "./../WebGL/Shaders/custom";
-import * as Matrix from "./../WebGL/Matrix/matrix";
+import * as Matrix from "./../WebGL/Matrix/matrix";*/
 import * as PianoRenderer from "../renderers/piano";
 import * as Note from "./../compose/note";
 
-import * as WebGLGeneral from "./../WebGL/globals";
+//import * as WebGLGeneral from "./../WebGL/globals";
 
 import {MIDIRenderer} from "./../renderers/midi";
 import { MIDIEngine } from "../engine/engine";
@@ -32,8 +34,10 @@ type MIDIViewProps = {
 }
 
 
-function positionPianoMatrix(top_left: Matrix.Point2D, width: Int32, height: Int32, orientation: PianoRenderer.PianoOrientation): Matrix.TransformationMatrix3x3{
-  const matrix = Matrix.TransformationMatrix3x3.identity();
+function positionPianoMatrix(top_left: WebGL.Matrix.Point2D, 
+  width: Int32, height: Int32, 
+  orientation: PianoRenderer.PianoOrientation): WebGL.Matrix.TransformationMatrix3x3{
+  const matrix = WebGL.Matrix.TransformationMatrix3x3.identity();
   switch(orientation){
     case "down":
       matrix.translate(top_left.x, top_left.y);
@@ -56,7 +60,7 @@ function positionPianoMatrix(top_left: Matrix.Point2D, width: Int32, height: Int
   return matrix;
 }
 
-const vert_test = Matrix.TransformationMatrix3x3.identity();
+const vert_test = WebGL.Matrix.TransformationMatrix3x3.identity();
 //module.trans
 
 export function MIDIView(props: MIDIViewProps){
@@ -71,10 +75,10 @@ export function MIDIView(props: MIDIViewProps){
   }
   const piano_model = useRef<PianoRenderer.BasePianoModel>(PianoRenderer.PianoModelGenerator.generateModel(piano_model_props.white_keys, piano_model_props.starting_note));
   //const vp = Matrix.TransformationMatrix3x3.orthographic(0, 1, 1, 0);
-  const perspective = Matrix.TransformationMatrix3x3.orthographic(0, w, h, 0);
+  const perspective = WebGL.Matrix.TransformationMatrix3x3.orthographic(0, w, h, 0);
   const pw = 650;
   const ph = 200;
-  const top_left = new Matrix.Point2D(30, 50);
+  const top_left = new WebGL.Matrix.Point2D(30, 50);
   const orientation: PianoRenderer.PianoOrientation = "left";
   const model = positionPianoMatrix(top_left, pw, ph, orientation);
   //model.rotate(0.1);
@@ -83,7 +87,7 @@ export function MIDIView(props: MIDIViewProps){
 
   const engine = useRef<MIDIEngine | undefined>();
   const renderer = useRef<MIDIRenderer | undefined>();
-  const midi_app = useRef<WebGLGeneral.App.App<MIDIEngine> | undefined>();
+  const midi_app = useRef<WebGL.App.App<MIDIEngine> | undefined>();
   const loaded = useRef<boolean>(false);
 
   useEffect(() => {
@@ -94,15 +98,15 @@ export function MIDIView(props: MIDIViewProps){
     if(c != null){
       c.width = w;
       c.height = h;
-      WebGL.initialise(c);
+      WebGL.WebGL.initialise(c);
       piano_renderer.current = new PianoRenderer.StaticPianoRenderer(w, h);
       engine.current = new MIDIEngine(w, h, c, props.audio_context);
       renderer.current = new MIDIRenderer();
       //drawGrid();
       //drawPiano();
       //WebGLGeneral.testBasicModel();
-      WebGLGeneral.BasicModel.init();
-      midi_app.current = new WebGLGeneral.App.App(engine.current, renderer.current);
+      WebGL.BasicModel.init();
+      midi_app.current = new WebGL.App.App(engine.current, renderer.current);
       midi_app.current.loadResources(
         () => {
           renderer.current!.setup(engine.current!);
@@ -116,19 +120,19 @@ export function MIDIView(props: MIDIViewProps){
     }
   }, []);
   function drawGrid(){
-    const shader = new Shader.MVPColourProgram();
-    const vp = Matrix.TransformationMatrix3x3.orthographic(0, w, h, 0);
-    const model = WebGL.rectangleModel(10, 10, 50, 80);
+    const shader = new WebGL.Shader.MVPColourProgram();
+    const vp = WebGL.Matrix.TransformationMatrix3x3.orthographic(0, w, h, 0);
+    const model = WebGL.WebGL.rectangleModel(10, 10, 50, 80);
     shader.use();
     shader.setMvp(vp.multiplyCopy(model));
     shader.setColour(0.5, 0.1, 0.7);
-    Shapes.Quad.draw();
+    WebGL.Shapes.Quad.draw();
 
-    const l_model = WebGL.lineModel(10, 10, 50+10, 80+10, 3);
+    const l_model = WebGL.WebGL.lineModel(10, 10, 50+10, 80+10, 3);
     console.log(l_model);
     shader.setColour(0.2, 0.9, 0.3);
     shader.setMvp(vp.multiplyCopy(l_model));
-    Shapes.CenterQuad.draw();
+    WebGL.Shapes.CenterQuad.draw();
     //Shapes.Quad.draw();
   }
   function drawPiano(){
